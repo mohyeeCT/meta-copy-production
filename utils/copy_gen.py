@@ -1,7 +1,7 @@
 import anthropic
 import openai
-import google.generativeai as genai
-from mistralai import Mistral
+from google import genai as google_genai
+from mistralai.client import Mistral
 from groq import Groq
 
 
@@ -88,11 +88,13 @@ def generate_copy_openai(api_key: str, url: str, keyword: str, page_type: str = 
 # ── Gemini ────────────────────────────────────────────────────────────────────
 def generate_copy_gemini(api_key: str, url: str, keyword: str, page_type: str = "general",
                          brand_name: str = "", forbidden_phrases: str = "", context: str = "") -> dict:
-    genai.configure(api_key=api_key)
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    client = google_genai.Client(api_key=api_key)
 
     def call(template):
-        resp = model.generate_content(_build_prompt(template, url, keyword, page_type, brand_name, forbidden_phrases, context))
+        resp = client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=_build_prompt(template, url, keyword, page_type, brand_name, forbidden_phrases, context)
+        )
         return resp.text.strip()
 
     return {"title": call(TITLE_PROMPT), "description": call(DESCRIPTION_PROMPT)}
