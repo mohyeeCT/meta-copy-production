@@ -34,11 +34,22 @@ with st.sidebar:
 
     st.divider()
     st.subheader("AI Provider")
-    ai_provider = st.selectbox("Provider", ["Claude", "OpenAI"])
-    ai_key = st.text_input(
-        "Claude API Key" if ai_provider == "Claude" else "OpenAI API Key",
-        type="password"
-    )
+    ai_provider = st.selectbox("Provider", [
+        "Claude",
+        "OpenAI",
+        "Gemini (free)",
+        "Mistral (free tier)",
+        "Groq (free tier)"
+    ])
+    _key_labels = {
+        "Claude": ("Claude API Key", "console.anthropic.com"),
+        "OpenAI": ("OpenAI API Key", "platform.openai.com/api-keys"),
+        "Gemini (free)": ("Google AI Studio API Key", "aistudio.google.com/app/apikey - free, no card needed"),
+        "Mistral (free tier)": ("Mistral API Key", "console.mistral.ai - free tier available"),
+        "Groq (free tier)": ("Groq API Key", "console.groq.com - free tier available"),
+    }
+    _label, _hint = _key_labels[ai_provider]
+    ai_key = st.text_input(_label, type="password", help=_hint)
 
     st.divider()
     st.subheader("Copy Settings")
