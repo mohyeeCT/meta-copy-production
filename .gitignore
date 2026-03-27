@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+.env
+*.json
+!example_service_account.json
+.streamlit/secrets.toml
