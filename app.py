@@ -53,6 +53,11 @@ with st.sidebar:
 
     st.divider()
     st.subheader("Copy Settings")
+    business_type = st.selectbox(
+        "Business Type",
+        ["b2b", "b2c", "ecommerce", "service", "local", "general"],
+        help="Adjusts tone, CTA style, and copy patterns to match the client's business model."
+    )
     brand_name = st.text_input("Brand Name", placeholder="Acme Inc.")
     forbidden_phrases = st.text_area(
         "Forbidden Phrases (one per line)",
@@ -259,7 +264,8 @@ if "df" in st.session_state:
                     page_type=page_type,
                     brand_name=brand_name,
                     forbidden_phrases="\n".join([p.strip() for p in forbidden_phrases.strip().splitlines() if p.strip()]),
-                    context=""
+                    context="",
+                    business_type=business_type
                 )
                 results.append({
                     "url": url,
