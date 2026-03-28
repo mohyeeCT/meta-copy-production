@@ -82,6 +82,11 @@ st.caption("Sheet must have at minimum: a URL column. Optional: keyword column, 
 if sheet_url and sa_file:
     try:
         sa_info = json.load(sa_file)
+
+        # Show service account email so user knows what to share the sheet with
+        sa_email = sa_info.get("client_email", "unknown")
+        st.info(f"Service account: **{sa_email}** — make sure this email has Editor access to the sheet.")
+
         gc = get_gspread_client(sa_info)
         df, spreadsheet, ws = load_sheet(gc, sheet_url, worksheet_name or None)
         st.success(f"Connected. {len(df)} rows loaded.")
@@ -91,6 +96,7 @@ if sheet_url and sa_file:
         st.session_state["sa_info"] = sa_info
     except Exception as e:
         st.error(f"Could not connect to sheet: {e}")
+        st.caption("Most common causes: (1) sheet not shared with the service account email above, (2) wrong sheet URL, (3) service account missing Google Sheets API access in Cloud Console.")
 
 # ── Main: Column mapping ──────────────────────────────────────────────────────
 if "df" in st.session_state:
