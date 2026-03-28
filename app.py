@@ -66,7 +66,8 @@ with st.sidebar:
     )
     location_code = st.number_input("DFS Location Code", value=2840, step=1,
                                      help="2840 = US. See DataForSEO docs for other locations.")
-    min_volume = st.number_input("Min Keyword Volume", value=100, step=10)
+    min_volume = st.number_input("Min Keyword Volume", value=10, step=10,
+                                     help="Lower this for smaller sites. Set to 0 to disable volume filtering.")
 
 # ── Main: Sheet connection ────────────────────────────────────────────────────
 st.header("1. Connect to Google Sheet")
@@ -187,6 +188,8 @@ if "df" in st.session_state:
                 if gsc_queries:
                     # Priority 3: enrich with DFS
                     query_list = [q["query"] for q in gsc_queries]
+                    # Store GSC queries in result for diagnostics
+                    _gsc_debug = ", ".join([f"{q['query']} (pos {q['position']}, imp {q['impressions']})" for q in gsc_queries])
                     progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: fetching DFS data...")
                     dfs_volumes = get_keyword_overview(dfs_login, dfs_password, query_list, location_code=int(location_code))
                     dfs_difficulty = get_keyword_difficulty(dfs_login, dfs_password, query_list, location_code=int(location_code))
@@ -211,7 +214,7 @@ if "df" in st.session_state:
                         keyword_source = "gsc+dfs"
                         runner_up_kw = result["runner_up"]["keyword"] if result["runner_up"] else None
                     else:
-                        keyword_source = "fallback: no keyword found"
+                        keyword_source = f"fallback: no keyword passed scoring (GSC queries: {_gsc_debug})"
 
                 else:
                     keyword_source = "fallback: no GSC data"

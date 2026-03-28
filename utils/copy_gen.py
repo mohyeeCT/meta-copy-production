@@ -92,7 +92,7 @@ def generate_copy_gemini(api_key: str, url: str, keyword: str, page_type: str = 
 
     def call(template):
         resp = client.models.generate_content(
-            model="gemini-1.5-flash",
+            model="gemini-2.0-flash",
             contents=_build_prompt(template, url, keyword, page_type, brand_name, forbidden_phrases, context)
         )
         return resp.text.strip()
