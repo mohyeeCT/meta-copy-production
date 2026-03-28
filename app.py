@@ -214,7 +214,20 @@ if "df" in st.session_state:
                         keyword_source = "gsc+dfs"
                         runner_up_kw = result["runner_up"]["keyword"] if result["runner_up"] else None
                     else:
-                        keyword_source = f"fallback: no keyword passed scoring (GSC queries: {_gsc_debug})"
+                        # Secondary fallback: use top GSC query by impressions
+                        # (ignoring volume filter - useful for niche sites with low DFS volume)
+                        non_branded = [
+                            q for q in gsc_queries
+                            if not any(b in q["query"].lower() for b in branded_terms)
+                            and q.get("position", 99) > 1.0
+                        ]
+                        if non_branded:
+                            top_gsc = sorted(non_branded, key=lambda x: x["impressions"], reverse=True)[0]
+                            selected_keyword = top_gsc["query"]
+                            keyword_source = "gsc-only (low DFS volume)"
+                            runner_up_kw = non_branded[1]["query"] if len(non_branded) > 1 else None
+                        else:
+                            keyword_source = f"fallback: no keyword passed scoring (GSC queries: {_gsc_debug})"
 
                 else:
                     keyword_source = "fallback: no GSC data"
@@ -273,7 +286,15 @@ if "df" in st.session_state:
                 })
                 skipped.append({"row": i + 2, "reason": str(e)})
 
-            time.sleep(0.3)  # Avoid rate limits
+            # Rate limiting: Gemini free tier = 15 RPM (2 calls per URL = ~4s needed)
+            _rate_delays = {
+                "Gemini (free)": 5.0,
+                "Mistral (free tier)": 2.0,
+                "Groq (free tier)": 2.0,
+                "Claude": 0.5,
+                "OpenAI": 0.5,
+            }
+            time.sleep(_rate_delays.get(ai_provider, 0.5))
 
         progress.progress(1.0, text="Done.")
         results_df = pd.DataFrame(results)
