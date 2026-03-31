@@ -5,6 +5,26 @@ from mistralai.client import Mistral
 from groq import Groq
 
 
+def _sanitise(text: str) -> str:
+    """
+    Post-process AI output to enforce hard formatting rules
+    regardless of what the model returns.
+    - Replaces em dash with comma+space
+    - Replaces en dash separator with pipe
+    - Strips surrounding quotes the model sometimes adds
+    """
+    if not text:
+        return text
+    import re
+    # Em dash: replace with comma + space, handling optional surrounding whitespace
+    text = re.sub(r'\s*—\s*', ', ', text)
+    # En dash as separator: replace with pipe
+    text = re.sub(r' – ', ' | ', text)
+    # Strip surrounding quotes
+    text = text.strip('"').strip("'")
+    return text.strip()
+
+
 # Business type guidance injected into prompts
 BUSINESS_TYPE_CONTEXT = {
     "b2b": {
@@ -73,7 +93,9 @@ Hard rules:
 - Include the target keyword naturally, ideally near the start
 - No all-caps, excessive punctuation, or clickbait
 - No padding or filler words
+- Never use em dashes (—) anywhere in the output
 - If brand name is provided, append it at the end after a pipe character
+- Use the brand name EXACTLY as provided, preserving capitalisation and full name (e.g. "DSB Law Firm" not "dsb" or "DSB")
 - Return ONLY the title tag text. No explanation, no quotes, no extra text.
 
 Business context:
@@ -104,6 +126,8 @@ Hard rules:
 - Include the target keyword naturally
 - Do not duplicate the title tag
 - No all-caps, excessive punctuation, or clickbait
+- Never use em dashes (—) anywhere in the output. Use a comma or rewrite the sentence instead.
+- Use the brand name EXACTLY as provided, preserving capitalisation and full name
 - Return ONLY the meta description text. No explanation, no quotes, no extra text.
 
 Business context:
@@ -165,7 +189,7 @@ def generate_copy_claude(api_key: str, url: str, keyword: str, page_type: str = 
         )
         return msg.content[0].text.strip()
 
-    return {"title": call(TITLE_PROMPT), "description": call(DESCRIPTION_PROMPT)}
+    return {"title": _sanitise(call(TITLE_PROMPT)), "description": _sanitise(call(DESCRIPTION_PROMPT))}
 
 
 # ── OpenAI ────────────────────────────────────────────────────────────────────
@@ -182,7 +206,7 @@ def generate_copy_openai(api_key: str, url: str, keyword: str, page_type: str = 
         )
         return resp.choices[0].message.content.strip()
 
-    return {"title": call(TITLE_PROMPT), "description": call(DESCRIPTION_PROMPT)}
+    return {"title": _sanitise(call(TITLE_PROMPT)), "description": _sanitise(call(DESCRIPTION_PROMPT))}
 
 
 # ── Gemini ────────────────────────────────────────────────────────────────────
@@ -198,7 +222,7 @@ def generate_copy_gemini(api_key: str, url: str, keyword: str, page_type: str = 
         )
         return resp.text.strip()
 
-    return {"title": call(TITLE_PROMPT), "description": call(DESCRIPTION_PROMPT)}
+    return {"title": _sanitise(call(TITLE_PROMPT)), "description": _sanitise(call(DESCRIPTION_PROMPT))}
 
 
 # ── Mistral ───────────────────────────────────────────────────────────────────
@@ -215,7 +239,7 @@ def generate_copy_mistral(api_key: str, url: str, keyword: str, page_type: str =
         )
         return resp.choices[0].message.content.strip()
 
-    return {"title": call(TITLE_PROMPT), "description": call(DESCRIPTION_PROMPT)}
+    return {"title": _sanitise(call(TITLE_PROMPT)), "description": _sanitise(call(DESCRIPTION_PROMPT))}
 
 
 # ── Groq ──────────────────────────────────────────────────────────────────────
@@ -231,7 +255,7 @@ def generate_copy_groq(api_key: str, url: str, keyword: str, page_type: str = "g
         )
         return resp.choices[0].message.content.strip()
 
-    return {"title": call(TITLE_PROMPT), "description": call(DESCRIPTION_PROMPT)}
+    return {"title": _sanitise(call(TITLE_PROMPT)), "description": _sanitise(call(DESCRIPTION_PROMPT))}
 
 
 # ── Router ────────────────────────────────────────────────────────────────────
