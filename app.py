@@ -59,10 +59,15 @@ with st.sidebar:
         help="Adjusts tone, CTA style, and copy patterns to match the client's business model."
     )
     brand_name = st.text_input("Brand Name", placeholder="Acme Inc.")
+    include_brand_in_copy = st.toggle(
+        "Include brand in title and description",
+        value=True,
+        help="On: appends brand name to title tags and descriptions. Off: copy is generated without brand name. Useful for testing or clients who prefer unbranded copy."
+    )
     full_brand_name = st.text_input(
         "Full Brand Name (optional)",
         placeholder="Dayson Shalabi Burkert",
-        help="If the brand is an abbreviation (e.g. DSB), enter the full name here. Each word will be added to the branded filter automatically. Catches queries like 'dayson shalabi attorney' or 'shalabi law'."
+        help="If the brand is an abbreviation (e.g. DSB), enter the full name here. Each word will be added to the branded filter automatically."
     )
     forbidden_phrases = st.text_area(
         "Forbidden Phrases (one per line)",
@@ -333,6 +338,8 @@ if "df" in st.session_state:
             keyword_source = None
             selected_keyword = None
             runner_up_kw = None
+            kw_volume = None
+            kw_difficulty = None
 
             if manual_kw:
                 selected_keyword = manual_kw
@@ -373,9 +380,11 @@ if "df" in st.session_state:
                     )
 
                     if not result["fallback_triggered"]:
-                        selected_keyword = result["selected_keyword"]
-                        keyword_source = "gsc+dfs"
-                        runner_up_kw = result["runner_up"]["keyword"] if result["runner_up"] else None
+                        selected_keyword    = result["selected_keyword"]
+                        keyword_source      = "gsc+dfs"
+                        runner_up_kw        = result["runner_up"]["keyword"] if result["runner_up"] else None
+                        kw_volume           = result["selected_keyword_data"]["volume"] if result["selected_keyword_data"] else None
+                        kw_difficulty       = result["selected_keyword_data"]["difficulty"] if result["selected_keyword_data"] else None
                     else:
                         # Secondary fallback: use top GSC query by impressions
                         # (ignoring volume filter - useful for niche sites with low DFS volume)
@@ -402,6 +411,8 @@ if "df" in st.session_state:
                     "selected_keyword": None,
                     "keyword_source": keyword_source,
                     "runner_up": runner_up_kw,
+                    "kw_volume": kw_volume,
+                    "kw_difficulty": kw_difficulty,
                     "generated_title": None,
                     "generated_description": None,
                     "title_length": None,
@@ -422,7 +433,7 @@ if "df" in st.session_state:
                     url=url,
                     keyword=selected_keyword,
                     page_type=page_type,
-                    brand_name=brand_name,
+                    brand_name=brand_name if include_brand_in_copy else "",
                     forbidden_phrases="\n".join([p.strip() for p in forbidden_phrases.strip().splitlines() if p.strip()]),
                     context="",
                     business_type=business_type,
@@ -433,6 +444,8 @@ if "df" in st.session_state:
                     "h1_used": h1_value,
                     "h1_source": h1_source,
                     "selected_keyword": selected_keyword,
+                    "kw_volume": kw_volume,
+                    "kw_difficulty": kw_difficulty,
                     "keyword_source": keyword_source,
                     "runner_up": runner_up_kw,
                     "generated_title": copy["title"],
@@ -449,6 +462,8 @@ if "df" in st.session_state:
                     "selected_keyword": selected_keyword,
                     "keyword_source": keyword_source,
                     "runner_up": runner_up_kw,
+                    "kw_volume": kw_volume,
+                    "kw_difficulty": kw_difficulty,
                     "generated_title": None,
                     "generated_description": None,
                     "title_length": None,
