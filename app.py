@@ -59,6 +59,11 @@ with st.sidebar:
         help="Adjusts tone, CTA style, and copy patterns to match the client's business model."
     )
     brand_name = st.text_input("Brand Name", placeholder="Acme Inc.")
+    full_brand_name = st.text_input(
+        "Full Brand Name (optional)",
+        placeholder="Dayson Shalabi Burkert",
+        help="If the brand is an abbreviation (e.g. DSB), enter the full name here. Each word will be added to the branded filter automatically. Catches queries like 'dayson shalabi attorney' or 'shalabi law'."
+    )
     forbidden_phrases = st.text_area(
         "Forbidden Phrases (one per line)",
         placeholder="best in class\nworld-class\namazing",
@@ -174,7 +179,14 @@ if "df" in st.session_state:
                 import re as _re
                 _domain_raw = _re.sub(r"https?://(www\.)?|sc-domain:", "", gsc_site_url).rstrip("/")
                 _domain_parts = set(_re.findall(r"[a-z]+", _domain_raw.lower()))
-                _domain_parts -= {"com","net","org","co","uk","io","house","app"}
+                _domain_parts -= {"com","net","org","co","uk","io","house","app","law","firm","group","inc","llc","ltd"}
+
+                # Also include words from full brand name as detection seeds
+                _full_name_parts = set(
+                    w.lower() for w in _re.findall(r"[a-zA-Z]+", full_brand_name)
+                    if len(w) >= 3
+                )
+                _domain_parts = _domain_parts | _full_name_parts
 
                 _detected = {}
                 for _q, _r in _all_queries.items():
@@ -261,10 +273,21 @@ if "df" in st.session_state:
 
         gsc_client = get_gsc_client(sa_info)
 
-        # Merge manual + auto-detected confirmed branded terms
-        _manual    = [t.strip() for t in branded_terms_input.strip().splitlines() if t.strip()]
+        # Merge manual + full brand name words + auto-detected confirmed branded terms
+        _manual    = [t.strip().lower() for t in branded_terms_input.strip().splitlines() if t.strip()]
         _auto      = st.session_state.get("confirmed_branded", [])
-        branded_terms = list(set(_manual + _auto))
+
+        # Extract individual words from full brand name (skip short words < 3 chars)
+        import re as _re2
+        _full_name_words = [
+            w.lower() for w in _re2.findall(r"[a-zA-Z]+", full_brand_name)
+            if len(w) >= 3
+        ] if full_brand_name.strip() else []
+
+        branded_terms = list(set(_manual + _auto + _full_name_words))
+
+        if branded_terms:
+            st.info(f"Branded filter active: {', '.join(sorted(branded_terms))}")
 
         results = []
         skipped = []
