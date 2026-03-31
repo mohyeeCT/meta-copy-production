@@ -464,72 +464,81 @@ if "df" in st.session_state:
         progress.progress(1.0, text="Done.")
         results_df = pd.DataFrame(results)
         st.session_state["results_df"] = results_df
+        st.session_state["skipped"]    = skipped
+        st.session_state["total"]      = total
+        st.rerun()
 
-        # ── Results ───────────────────────────────────────────────────────────
-        st.header("6. Results")
+# ── Results and Export (outside run block so buttons persist across reruns) ──
+if "results_df" in st.session_state:
+    results_df = st.session_state["results_df"]
+    skipped    = st.session_state.get("skipped", [])
+    total      = st.session_state.get("total", len(results_df))
 
-        ok_count = len(results_df[results_df["status"] == "ok"])
-        skip_count = len(skipped)
+    st.header("6. Results")
 
-        m1, m2, m3 = st.columns(3)
-        m1.metric("Total Rows", total)
-        m2.metric("Generated", ok_count)
-        m3.metric("Skipped / Errors", skip_count)
+    ok_count   = len(results_df[results_df["status"] == "ok"])
+    skip_count = len(skipped)
 
-        # Flag length violations
-        def highlight_length(row):
-            styles = [""] * len(row)
+    m1, m2, m3 = st.columns(3)
+    m1.metric("Total Rows", total)
+    m2.metric("Generated", ok_count)
+    m3.metric("Skipped / Errors", skip_count)
+
+    def highlight_length(row):
+        styles = [""] * len(row)
+        try:
             ti = results_df.columns.get_loc("title_length")
             di = results_df.columns.get_loc("description_length")
-            if row["title_length"] and row["title_length"] > 60:
+            if row["title_length"] and int(row["title_length"]) > 60:
                 styles[ti] = "background-color: #ffe0e0"
-            if row["description_length"] and row["description_length"] > 155:
+            if row["description_length"] and int(row["description_length"]) > 155:
                 styles[di] = "background-color: #ffe0e0"
-            return styles
+        except Exception:
+            pass
+        return styles
 
-        st.dataframe(
-            results_df.style.apply(highlight_length, axis=1),
-            use_container_width=True,
-            height=400
+    st.dataframe(
+        results_df.style.apply(highlight_length, axis=1),
+        use_container_width=True,
+        height=400
+    )
+
+    if skipped:
+        with st.expander(f"Skipped rows ({skip_count})"):
+            st.dataframe(pd.DataFrame(skipped), use_container_width=True)
+
+    st.header("7. Export")
+    ec1, ec2 = st.columns(2)
+
+    with ec1:
+        csv_buffer = StringIO()
+        results_df.to_csv(csv_buffer, index=False)
+        st.download_button(
+            label="Download CSV",
+            data=csv_buffer.getvalue(),
+            file_name="meta_copy_output.csv",
+            mime="text/csv"
         )
 
-        if skipped:
-            with st.expander(f"Skipped rows ({skip_count})"):
-                st.dataframe(pd.DataFrame(skipped), use_container_width=True)
-
-        # ── Export ────────────────────────────────────────────────────────────
-        st.header("7. Export")
-        ec1, ec2 = st.columns(2)
-
-        with ec1:
-            csv_buffer = StringIO()
-            results_df.to_csv(csv_buffer, index=False)
-            st.download_button(
-                label="Download CSV",
-                data=csv_buffer.getvalue(),
-                file_name="meta_copy_output.csv",
-                mime="text/csv"
-            )
-
-        with ec2:
-            if st.button("Write Back to Google Sheet"):
-                ws = st.session_state["ws"]
-                col_map = {
-                    "h1_used": "H1 Used",
-                    "h1_source": "H1 Source",
-                    "selected_keyword": "SEO Target Keyword",
-                    "keyword_source": "Keyword Source",
-                    "runner_up": "Runner Up Keyword",
-                    "generated_title": "Generated Title",
-                    "generated_description": "Generated Description",
-                    "title_length": "Title Length",
-                    "description_length": "Description Length",
-                    "status": "Copy Status"
-                }
-                with st.spinner("Writing to sheet..."):
-                    try:
-                        write_results_to_sheet(ws, results_df, col_map)
-                        st.success(f"Done. {len(results_df)} rows written to Google Sheet.")
-                    except Exception as e:
-                        st.error(f"Write failed: {e}")
-                        st.caption("Common causes: service account does not have Editor access to the sheet, or the sheet is protected.")
+    with ec2:
+        if st.button("Write Back to Google Sheet"):
+            ws  = st.session_state["ws"]
+            col_map = {
+                "h1_used":              "H1 Used",
+                "h1_source":            "H1 Source",
+                "selected_keyword":     "SEO Target Keyword",
+                "keyword_source":       "Keyword Source",
+                "runner_up":            "Runner Up Keyword",
+                "generated_title":      "Generated Title",
+                "generated_description":"Generated Description",
+                "title_length":         "Title Length",
+                "description_length":   "Description Length",
+                "status":               "Copy Status"
+            }
+            with st.spinner("Writing to sheet..."):
+                try:
+                    write_results_to_sheet(ws, results_df, col_map)
+                    st.success(f"Done. {len(results_df)} rows written to Google Sheet.")
+                except Exception as e:
+                    st.error(f"Write failed: {e}")
+                    st.caption("Common causes: service account does not have Editor access to the sheet, or the sheet is protected.")
