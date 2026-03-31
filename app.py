@@ -527,5 +527,9 @@ if "df" in st.session_state:
                     "status": "Copy Status"
                 }
                 with st.spinner("Writing to sheet..."):
-                    write_results_to_sheet(ws, results_df, col_map)
-                st.success("Results written to Google Sheet.")
+                    try:
+                        write_results_to_sheet(ws, results_df, col_map)
+                        st.success(f"Done. {len(results_df)} rows written to Google Sheet.")
+                    except Exception as e:
+                        st.error(f"Write failed: {e}")
+                        st.caption("Common causes: service account does not have Editor access to the sheet, or the sheet is protected.")

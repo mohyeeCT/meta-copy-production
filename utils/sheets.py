@@ -26,21 +26,48 @@ def load_sheet(client, sheet_url: str, worksheet_name: str = None) -> pd.DataFra
 
 def write_results_to_sheet(ws, df: pd.DataFrame, result_col_map: dict):
     """
-    result_col_map: { 'generated_title': 'Col Header In Sheet', ... }
-    Writes result columns back by matching row index.
+    Writes result columns back to the sheet using batch updates.
+    Uses a single API call per column instead of one per cell.
+
+    result_col_map: { df_col_key: sheet_column_header, ... }
     Assumes sheet has a header row and data starts at row 2.
     """
+    from gspread.utils import rowcol_to_a1
+
     headers = ws.row_values(1)
+    updates = []
 
     for col_key, col_header in result_col_map.items():
+        if col_key not in df.columns:
+            continue
+
+        # Find or create the column
         if col_header not in headers:
-            # Append new column header
             headers.append(col_header)
             col_index = len(headers)
-            ws.update_cell(1, col_index, col_header)
+            # Write header in same batch
+            updates.append({
+                "range": rowcol_to_a1(1, col_index),
+                "values": [[col_header]]
+            })
         else:
             col_index = headers.index(col_header) + 1
 
-        # Write each row value
-        for i, value in enumerate(df[col_key].tolist()):
-            ws.update_cell(i + 2, col_index, str(value) if pd.notna(value) else "")
+        # Build column values as a vertical range (single batch call)
+        col_letter = rowcol_to_a1(1, col_index)[:-1]  # e.g. "D"
+        start_row  = 2
+        end_row    = start_row + len(df) - 1
+        range_str  = f"{col_letter}{start_row}:{col_letter}{end_row}"
+
+        values = [
+            [str(v) if pd.notna(v) and str(v) != "None" else ""]
+            for v in df[col_key].tolist()
+        ]
+
+        updates.append({"range": range_str, "values": values})
+
+    if updates:
+        ws.spreadsheet.values_batch_update({
+            "valueInputOption": "RAW",
+            "data": updates
+        })
