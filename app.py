@@ -130,8 +130,117 @@ if "df" in st.session_state:
         placeholder="https://example.com/ or sc-domain:example.com"
     )
 
+    # ── Main: Brand Detection ─────────────────────────────────────────────────
+    st.header("4. Brand Detection")
+
+    detect_ready = (
+        sa_file is not None and
+        gsc_site_url and
+        "df" in st.session_state and
+        "sa_info" in st.session_state
+    )
+
+    if detect_ready:
+        detect_btn = st.button("Auto-detect Branded Terms", type="secondary")
+
+        if detect_btn:
+            with st.spinner("Scanning GSC queries for branded signals..."):
+                _sa_info  = st.session_state["sa_info"]
+                _gsc      = get_gsc_client(_sa_info)
+                _df       = st.session_state["df"].copy()
+
+                # Sample up to 10 URLs from the sheet
+                _sample_urls = _df[url_col].dropna().tolist()[:10]
+
+                _all_queries = {}
+                for _url in _sample_urls:
+                    _url = str(_url).strip()
+                    if not _url.startswith("http"):
+                        continue
+                    _rows = get_top_queries_for_url(_gsc, gsc_site_url, _url, top_n=20)
+                    for _r in _rows:
+                        if "_error" in _r:
+                            continue
+                        _q = _r["query"].lower()
+                        if _q not in _all_queries:
+                            _all_queries[_q] = _r
+                        else:
+                            # Accumulate impressions across URLs
+                            _all_queries[_q]["impressions"] += _r.get("impressions", 0)
+                            _all_queries[_q]["clicks"]      += _r.get("clicks", 0)
+
+                # Auto-detect branded signals
+                # Extract domain words from site URL for domain-based detection
+                import re as _re
+                _domain_raw = _re.sub(r"https?://(www\.)?|sc-domain:", "", gsc_site_url).rstrip("/")
+                _domain_parts = set(_re.findall(r"[a-z]+", _domain_raw.lower()))
+                _domain_parts -= {"com","net","org","co","uk","io","house","app"}
+
+                _detected = {}
+                for _q, _r in _all_queries.items():
+                    _imp  = _r.get("impressions", 0)
+                    _clk  = _r.get("clicks", 0)
+                    _pos  = _r.get("position", 99)
+                    _ctr  = _clk / _imp if _imp > 0 else 0
+                    _reasons = []
+
+                    # Signal 1: high CTR (branded queries get clicked almost every time)
+                    if _ctr >= 0.15 and _imp >= 10:
+                        _reasons.append(f"CTR {round(_ctr*100)}%")
+
+                    # Signal 2: dominant position + strong clicks
+                    if _pos <= 2.0 and _clk >= 5:
+                        _reasons.append(f"pos {_pos}")
+
+                    # Signal 3: query contains a domain word
+                    _q_words = set(_re.findall(r"[a-z]+", _q))
+                    _dom_match = _domain_parts & _q_words
+                    if _dom_match:
+                        _reasons.append(f"domain word: {', '.join(_dom_match)}")
+
+                    if _reasons:
+                        # Extract shortest root term from query for filtering
+                        # Prefer domain word if detected, else first word
+                        if _dom_match:
+                            _root = sorted(_dom_match, key=len)[0]
+                        else:
+                            _root = _q.split()[0]
+
+                        if _root not in _detected:
+                            _detected[_root] = {
+                                "queries": [],
+                                "reasons": set()
+                            }
+                        _detected[_root]["queries"].append(_q)
+                        _detected[_root]["reasons"].update(_reasons)
+
+                st.session_state["detected_branded"] = _detected
+                if not _detected:
+                    st.info("No branded terms detected automatically. Use manual entry in the sidebar if needed.")
+
+        # Show detected terms as checkboxes
+        if "detected_branded" in st.session_state and st.session_state["detected_branded"]:
+            st.caption("Detected branded terms. Checked = will be excluded from keyword scoring.")
+            _confirmed = {}
+            for _root, _data in st.session_state["detected_branded"].items():
+                _label = f"**{_root}** — matches: {', '.join(_data['queries'][:3])}{'...' if len(_data['queries']) > 3 else ''}"
+                _reason_str = " | ".join(_data["reasons"])
+                _checked = st.checkbox(
+                    f"`{_root}` ({_reason_str})",
+                    value=True,
+                    key=f"brand_chk_{_root}",
+                    help=f"Queries that will be excluded: {', '.join(_data['queries'][:5])}"
+                )
+                if _checked:
+                    _confirmed[_root] = _data
+            st.session_state["confirmed_branded"] = list(_confirmed.keys())
+        elif "detected_branded" not in st.session_state:
+            st.caption("Click 'Auto-detect Branded Terms' to scan GSC queries before running.")
+    else:
+        st.caption("Complete credentials and connect your sheet first.")
+
     # ── Main: Run ─────────────────────────────────────────────────────────────
-    st.header("4. Run")
+    st.header("5. Run")
 
     ready = (
         sa_file is not None and
@@ -151,7 +260,11 @@ if "df" in st.session_state:
         sa_info = st.session_state["sa_info"]
 
         gsc_client = get_gsc_client(sa_info)
-        branded_terms = [t.strip() for t in branded_terms_input.strip().splitlines() if t.strip()]
+
+        # Merge manual + auto-detected confirmed branded terms
+        _manual    = [t.strip() for t in branded_terms_input.strip().splitlines() if t.strip()]
+        _auto      = st.session_state.get("confirmed_branded", [])
+        branded_terms = list(set(_manual + _auto))
 
         results = []
         skipped = []
@@ -330,7 +443,7 @@ if "df" in st.session_state:
         st.session_state["results_df"] = results_df
 
         # ── Results ───────────────────────────────────────────────────────────
-        st.header("5. Results")
+        st.header("6. Results")
 
         ok_count = len(results_df[results_df["status"] == "ok"])
         skip_count = len(skipped)
@@ -362,7 +475,7 @@ if "df" in st.session_state:
                 st.dataframe(pd.DataFrame(skipped), use_container_width=True)
 
         # ── Export ────────────────────────────────────────────────────────────
-        st.header("6. Export")
+        st.header("7. Export")
         ec1, ec2 = st.columns(2)
 
         with ec1:
