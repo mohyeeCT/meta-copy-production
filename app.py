@@ -5,7 +5,7 @@ import time
 from io import StringIO
 
 from utils.sheets import get_gspread_client, load_sheet, write_results_to_sheet
-from utils.gsc import get_gsc_client, get_top_queries_for_url, list_verified_properties
+from utils.gsc import get_gsc_client, get_top_queries_for_url
 from utils.dfs import get_keyword_overview, get_keyword_difficulty
 from utils.keyword import select_keyword
 from utils.copy_gen import generate_copy
@@ -129,23 +129,6 @@ if "df" in st.session_state:
         "GSC Property URL",
         placeholder="https://example.com/ or sc-domain:example.com"
     )
-
-    if "sa_info" in st.session_state:
-        with st.expander("Verify GSC access - click to see verified properties"):
-            try:
-                _gsc_diag = get_gsc_client(st.session_state["sa_info"])
-                _props = list_verified_properties(_gsc_diag)
-                if _props and "_error" not in _props[0]:
-                    st.caption("Properties this service account can access:")
-                    for p in _props:
-                        match = "MATCH" if gsc_site_url and p["site_url"] == gsc_site_url else ""
-                        st.markdown(f"`{p['site_url']}` — {p['permission_level']} {' **← MATCH**' if match else ''}")
-                    if gsc_site_url and not any(p["site_url"] == gsc_site_url for p in _props):
-                        st.error(f"No match found for: `{gsc_site_url}` — copy one of the URLs above exactly into the field.")
-                else:
-                    st.error(f"GSC auth error: {_props[0].get('_error', 'unknown')}")
-            except Exception as e:
-                st.error(f"Could not check GSC properties: {e}")
 
     # ── Main: Run ─────────────────────────────────────────────────────────────
     st.header("4. Run")
