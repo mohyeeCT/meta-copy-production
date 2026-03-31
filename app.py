@@ -9,7 +9,6 @@ from utils.gsc import get_gsc_client, get_top_queries_for_url
 from utils.dfs import get_keyword_overview, get_keyword_difficulty
 from utils.keyword import select_keyword
 from utils.copy_gen import generate_copy
-from utils.scraper import scrape_h1
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -120,13 +119,7 @@ if "df" in st.session_state:
         page_type_col = st.selectbox("Page type column (optional)", cols)
     with col4:
         h1_col = st.selectbox("H1 column (optional)", cols,
-                              help="If blank or not mapped, app auto-scrapes the H1 from the URL.")
-
-    auto_scrape_h1 = st.checkbox(
-        "Auto-scrape H1 if column is empty",
-        value=True,
-        help="Fetches the live H1 from each URL. Disable for JS-rendered sites where scraping may return wrong H1."
-    )
+                              help="Map this to a column in your sheet containing the current page H1. Used as topic context for copy generation.")
 
     st.divider()
 
@@ -188,19 +181,14 @@ if "df" in st.session_state:
             if not page_type:
                 page_type = "general"
 
-            # H1 resolution: manual column > auto-scrape > empty
+            # H1: manual entry only
             h1_value = ""
             h1_source = ""
             if h1_col != "(none)":
                 manual_h1 = str(row.get(h1_col, "")).strip()
-                if manual_h1:
+                if manual_h1 and manual_h1.lower() != "none":
                     h1_value = manual_h1
                     h1_source = "manual"
-            if not h1_value and auto_scrape_h1:
-                progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: scraping H1...")
-                scrape_result = scrape_h1(url)
-                h1_value = scrape_result["h1"] or ""
-                h1_source = scrape_result["source"]
 
             # Priority 1: manual keyword
             manual_kw = str(row.get(keyword_col, "")).strip() if keyword_col != "(none)" else ""
