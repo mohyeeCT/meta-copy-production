@@ -536,9 +536,7 @@ if "results_df" in st.session_state:
         if st.button("Write Back to Google Sheet"):
             ws  = st.session_state["ws"]
             col_map = {
-                "h1_used":              "H1 Used",
-                "h1_source":            "H1 Source",
-                "selected_keyword":     "SEO Target Keyword",
+"selected_keyword":     "SEO Target Keyword",
                 "keyword_source":       "Keyword Source",
                 "runner_up":            "Runner Up Keyword",
                 "generated_title":      "Generated Title",
