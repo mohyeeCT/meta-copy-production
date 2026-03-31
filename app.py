@@ -225,7 +225,8 @@ if "df" in st.session_state:
                         gsc_queries=gsc_queries,
                         dfs_data=dfs_merged,
                         branded_terms=branded_terms,
-                        min_volume=int(min_volume)
+                        min_volume=int(min_volume),
+                        h1=h1_value
                     )
 
                     if not result["fallback_triggered"]:
