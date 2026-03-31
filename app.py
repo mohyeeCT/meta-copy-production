@@ -308,6 +308,8 @@ if "df" in st.session_state:
                     "generated_description": None,
                     "title_length": None,
                     "description_length": None,
+                    "optimised_h1": None,
+                    "h1_length": None,
                     "status": "skipped: invalid URL"
                 })
                 progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: skipped")
@@ -404,6 +406,8 @@ if "df" in st.session_state:
                     "generated_description": None,
                     "title_length": None,
                     "description_length": None,
+                    "optimised_h1": None,
+                    "h1_length": None,
                     "status": f"skipped: {keyword_source}"
                 })
                 progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: skipped ({keyword_source})")
@@ -433,8 +437,10 @@ if "df" in st.session_state:
                     "runner_up": runner_up_kw,
                     "generated_title": copy["title"],
                     "generated_description": copy["description"],
+                    "optimised_h1": copy.get("h1_optimised", ""),
                     "title_length": len(copy["title"]),
                     "description_length": len(copy["description"]),
+                    "h1_length": len(copy.get("h1_optimised", "")),
                     "status": "ok"
                 })
             except Exception as e:
@@ -447,6 +453,8 @@ if "df" in st.session_state:
                     "generated_description": None,
                     "title_length": None,
                     "description_length": None,
+                    "optimised_h1": None,
+                    "h1_length": None,
                     "status": f"error: {str(e)}"
                 })
                 skipped.append({"row": i + 2, "reason": str(e)})
@@ -493,6 +501,10 @@ if "results_df" in st.session_state:
                 styles[ti] = "background-color: #ffe0e0"
             if row["description_length"] and int(row["description_length"]) > 155:
                 styles[di] = "background-color: #ffe0e0"
+            if "h1_length" in results_df.columns:
+                hi = results_df.columns.get_loc("h1_length")
+                if row["h1_length"] and int(row["h1_length"]) > 70:
+                    styles[hi] = "background-color: #fff3cd"
         except Exception:
             pass
         return styles
@@ -531,8 +543,10 @@ if "results_df" in st.session_state:
                 "runner_up":            "Runner Up Keyword",
                 "generated_title":      "Generated Title",
                 "generated_description":"Generated Description",
+                "optimised_h1":         "Optimised H1",
                 "title_length":         "Title Length",
                 "description_length":   "Description Length",
+                "h1_length":            "H1 Length",
                 "status":               "Copy Status"
             }
             with st.spinner("Writing to sheet..."):

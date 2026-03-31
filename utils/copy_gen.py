@@ -156,6 +156,35 @@ Page details:
 Important: The H1 tells you the current page topic. Use it to write a description that accurately reflects the page content and stands out from similar pages on the same site."""
 
 
+
+H1_PROMPT = """You are a senior SEO copywriter. Write an optimised H1 tag for the following page.
+
+Hard rules:
+- No hard character limit but aim for under 70 characters
+- Include the target keyword naturally, ideally near the start
+- Do NOT include the brand name (H1 is on-page copy, brand is not needed)
+- No all-caps, excessive punctuation, or clickbait
+- Never use em dashes (—) anywhere in the output
+- Do not duplicate the title tag word for word — the H1 should be distinct
+- Return ONLY the H1 text. No explanation, no quotes, no extra text.
+
+Business context:
+- Business type: {business_type}
+- Target buyer: {buyer}
+- Buyer intent: {intent}
+- Recommended tone: {tone}
+- Avoid: {avoid}
+
+Page details:
+- URL: {url}
+- Page type: {page_type}
+- Target keyword: {keyword}
+- Current H1 (use as reference to improve on, not to copy): {h1}
+- Forbidden phrases: {forbidden_phrases}
+- Additional context: {context}
+
+Important: The current H1 shows what topic the page covers. Your job is to improve it by making it more specific, keyword-focused, and aligned with what the target buyer is searching for. Do not produce the same H1 unless it is already optimal."""
+
 def _build_prompt(template: str, url: str, keyword: str, page_type: str,
                   brand_name: str, forbidden_phrases: str, context: str,
                   business_type: str = "general", h1: str = "") -> str:
@@ -194,7 +223,7 @@ def generate_copy_claude(api_key: str, url: str, keyword: str, page_type: str = 
         )
         return msg.content[0].text.strip()
 
-    return {"title": _sanitise(call(TITLE_PROMPT), brand_name), "description": _sanitise(call(DESCRIPTION_PROMPT), brand_name)}
+    return {"title": _sanitise(call(TITLE_PROMPT), brand_name), "description": _sanitise(call(DESCRIPTION_PROMPT), brand_name), "h1_optimised": _sanitise(call(H1_PROMPT))}
 
 
 # ── OpenAI ────────────────────────────────────────────────────────────────────
@@ -211,7 +240,7 @@ def generate_copy_openai(api_key: str, url: str, keyword: str, page_type: str = 
         )
         return resp.choices[0].message.content.strip()
 
-    return {"title": _sanitise(call(TITLE_PROMPT), brand_name), "description": _sanitise(call(DESCRIPTION_PROMPT), brand_name)}
+    return {"title": _sanitise(call(TITLE_PROMPT), brand_name), "description": _sanitise(call(DESCRIPTION_PROMPT), brand_name), "h1_optimised": _sanitise(call(H1_PROMPT))}
 
 
 # ── Gemini ────────────────────────────────────────────────────────────────────
@@ -227,7 +256,7 @@ def generate_copy_gemini(api_key: str, url: str, keyword: str, page_type: str = 
         )
         return resp.text.strip()
 
-    return {"title": _sanitise(call(TITLE_PROMPT), brand_name), "description": _sanitise(call(DESCRIPTION_PROMPT), brand_name)}
+    return {"title": _sanitise(call(TITLE_PROMPT), brand_name), "description": _sanitise(call(DESCRIPTION_PROMPT), brand_name), "h1_optimised": _sanitise(call(H1_PROMPT))}
 
 
 # ── Mistral ───────────────────────────────────────────────────────────────────
@@ -244,12 +273,13 @@ def generate_copy_mistral(api_key: str, url: str, keyword: str, page_type: str =
         )
         return resp.choices[0].message.content.strip()
 
-    return {"title": _sanitise(call(TITLE_PROMPT), brand_name), "description": _sanitise(call(DESCRIPTION_PROMPT), brand_name)}
+    return {"title": _sanitise(call(TITLE_PROMPT), brand_name), "description": _sanitise(call(DESCRIPTION_PROMPT), brand_name), "h1_optimised": _sanitise(call(H1_PROMPT))}
 
 
 # ── Groq ──────────────────────────────────────────────────────────────────────
 def generate_copy_groq(api_key: str, url: str, keyword: str, page_type: str = "general",
-                       brand_name: str = "", forbidden_phrases: str = "", context: str = "") -> dict:
+                       brand_name: str = "", forbidden_phrases: str = "", context: str = "",
+                       business_type: str = "general", h1: str = "") -> dict:
     client = Groq(api_key=api_key)
 
     def call(template):
@@ -260,7 +290,7 @@ def generate_copy_groq(api_key: str, url: str, keyword: str, page_type: str = "g
         )
         return resp.choices[0].message.content.strip()
 
-    return {"title": _sanitise(call(TITLE_PROMPT), brand_name), "description": _sanitise(call(DESCRIPTION_PROMPT), brand_name)}
+    return {"title": _sanitise(call(TITLE_PROMPT), brand_name), "description": _sanitise(call(DESCRIPTION_PROMPT), brand_name), "h1_optimised": _sanitise(call(H1_PROMPT))}
 
 
 # ── Router ────────────────────────────────────────────────────────────────────
