@@ -50,4 +50,23 @@ def get_top_queries_for_url(client, site_url: str, page_url: str, top_n: int = 1
             })
         return results
     except Exception as e:
-        return []
+        # Return error details so app can surface them
+        return [{"_error": str(e), "_site_url": site_url, "_page_url": page_url}]
+
+
+def list_verified_properties(client) -> list:
+    """
+    Returns all GSC properties the service account has access to.
+    Useful for diagnosing property URL mismatches.
+    """
+    try:
+        response = client.sites().list().execute()
+        return [
+            {
+                "site_url":         s.get("siteUrl"),
+                "permission_level": s.get("permissionLevel")
+            }
+            for s in response.get("siteEntry", [])
+        ]
+    except Exception as e:
+        return [{"_error": str(e)}]
