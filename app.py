@@ -9,6 +9,7 @@ from utils.gsc import get_gsc_client, get_top_queries_for_url
 from utils.dfs import get_keyword_overview, get_keyword_difficulty
 from utils.keyword import select_keyword
 from utils.copy_gen import generate_copy
+from utils.scraper import scrape_h1
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -110,13 +111,22 @@ if "df" in st.session_state:
     df = st.session_state["df"]
     cols = ["(none)"] + list(df.columns)
 
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     with col1:
         url_col = st.selectbox("URL column *", [c for c in cols if c != "(none)"] or cols)
     with col2:
         keyword_col = st.selectbox("Keyword column (optional)", cols)
     with col3:
         page_type_col = st.selectbox("Page type column (optional)", cols)
+    with col4:
+        h1_col = st.selectbox("H1 column (optional)", cols,
+                              help="If blank or not mapped, app auto-scrapes the H1 from the URL.")
+
+    auto_scrape_h1 = st.checkbox(
+        "Auto-scrape H1 if column is empty",
+        value=True,
+        help="Fetches the live H1 from each URL. Disable for JS-rendered sites where scraping may return wrong H1."
+    )
 
     st.divider()
 
@@ -175,6 +185,22 @@ if "df" in st.session_state:
                 continue
 
             page_type = str(row.get(page_type_col, "general")).strip() if page_type_col != "(none)" else "general"
+            if not page_type:
+                page_type = "general"
+
+            # H1 resolution: manual column > auto-scrape > empty
+            h1_value = ""
+            h1_source = ""
+            if h1_col != "(none)":
+                manual_h1 = str(row.get(h1_col, "")).strip()
+                if manual_h1:
+                    h1_value = manual_h1
+                    h1_source = "manual"
+            if not h1_value and auto_scrape_h1:
+                progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: scraping H1...")
+                scrape_result = scrape_h1(url)
+                h1_value = scrape_result["h1"] or ""
+                h1_source = scrape_result["source"]
 
             # Priority 1: manual keyword
             manual_kw = str(row.get(keyword_col, "")).strip() if keyword_col != "(none)" else ""
@@ -265,10 +291,13 @@ if "df" in st.session_state:
                     brand_name=brand_name,
                     forbidden_phrases="\n".join([p.strip() for p in forbidden_phrases.strip().splitlines() if p.strip()]),
                     context="",
-                    business_type=business_type
+                    business_type=business_type,
+                    h1=h1_value
                 )
                 results.append({
                     "url": url,
+                    "h1_used": h1_value,
+                    "h1_source": h1_source,
                     "selected_keyword": selected_keyword,
                     "keyword_source": keyword_source,
                     "runner_up": runner_up_kw,
@@ -356,6 +385,8 @@ if "df" in st.session_state:
             if st.button("Write Back to Google Sheet"):
                 ws = st.session_state["ws"]
                 col_map = {
+                    "h1_used": "H1 Used",
+                    "h1_source": "H1 Source",
                     "selected_keyword": "SEO Target Keyword",
                     "keyword_source": "Keyword Source",
                     "runner_up": "Runner Up Keyword",

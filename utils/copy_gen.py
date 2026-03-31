@@ -88,8 +88,11 @@ Page details:
 - Page type: {page_type}
 - Target keyword: {keyword}
 - Brand name: {brand_name}
+- Current H1 (use as topic signal for what this page is actually about): {h1}
 - Forbidden phrases: {forbidden_phrases}
-- Additional context: {context}"""
+- Additional context: {context}
+
+Important: The H1 tells you the current page topic. Use it to ensure the title tag reflects the actual page content and differentiates product variations from each other."""
 
 
 DESCRIPTION_PROMPT = """You are a senior SEO copywriter with deep knowledge of how different business types require different copy strategies.
@@ -117,13 +120,16 @@ Page details:
 - Page type: {page_type}
 - Target keyword: {keyword}
 - Brand name: {brand_name}
+- Current H1 (use as topic signal for what this page is actually about): {h1}
 - Forbidden phrases: {forbidden_phrases}
-- Additional context: {context}"""
+- Additional context: {context}
+
+Important: The H1 tells you the current page topic. Use it to write a description that accurately reflects the page content and stands out from similar pages on the same site."""
 
 
 def _build_prompt(template: str, url: str, keyword: str, page_type: str,
                   brand_name: str, forbidden_phrases: str, context: str,
-                  business_type: str = "general") -> str:
+                  business_type: str = "general", h1: str = "") -> str:
     btype = business_type.lower().strip()
     bcontext = BUSINESS_TYPE_CONTEXT.get(btype, BUSINESS_TYPE_CONTEXT["general"])
     return template.format(
@@ -133,6 +139,7 @@ def _build_prompt(template: str, url: str, keyword: str, page_type: str,
         brand_name=brand_name or "N/A",
         forbidden_phrases=forbidden_phrases or "None",
         context=context or "None",
+        h1=h1 or "Not provided",
         business_type=btype,
         buyer=bcontext["buyer"],
         intent=bcontext["intent"],
@@ -147,14 +154,14 @@ def _build_prompt(template: str, url: str, keyword: str, page_type: str,
 # ── Claude ────────────────────────────────────────────────────────────────────
 def generate_copy_claude(api_key: str, url: str, keyword: str, page_type: str = "general",
                          brand_name: str = "", forbidden_phrases: str = "", context: str = "",
-                         business_type: str = "general") -> dict:
+                         business_type: str = "general", h1: str = "") -> dict:
     client = anthropic.Anthropic(api_key=api_key)
 
     def call(template):
         msg = client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=256,
-            messages=[{"role": "user", "content": _build_prompt(template, url, keyword, page_type, brand_name, forbidden_phrases, context, business_type)}]
+            messages=[{"role": "user", "content": _build_prompt(template, url, keyword, page_type, brand_name, forbidden_phrases, context, business_type, h1)}]
         )
         return msg.content[0].text.strip()
 
@@ -164,14 +171,14 @@ def generate_copy_claude(api_key: str, url: str, keyword: str, page_type: str = 
 # ── OpenAI ────────────────────────────────────────────────────────────────────
 def generate_copy_openai(api_key: str, url: str, keyword: str, page_type: str = "general",
                          brand_name: str = "", forbidden_phrases: str = "", context: str = "",
-                         business_type: str = "general") -> dict:
+                         business_type: str = "general", h1: str = "") -> dict:
     client = openai.OpenAI(api_key=api_key)
 
     def call(template):
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
             max_tokens=256,
-            messages=[{"role": "user", "content": _build_prompt(template, url, keyword, page_type, brand_name, forbidden_phrases, context, business_type)}]
+            messages=[{"role": "user", "content": _build_prompt(template, url, keyword, page_type, brand_name, forbidden_phrases, context, business_type, h1)}]
         )
         return resp.choices[0].message.content.strip()
 
@@ -181,13 +188,13 @@ def generate_copy_openai(api_key: str, url: str, keyword: str, page_type: str = 
 # ── Gemini ────────────────────────────────────────────────────────────────────
 def generate_copy_gemini(api_key: str, url: str, keyword: str, page_type: str = "general",
                          brand_name: str = "", forbidden_phrases: str = "", context: str = "",
-                         business_type: str = "general") -> dict:
+                         business_type: str = "general", h1: str = "") -> dict:
     client = google_genai.Client(api_key=api_key)
 
     def call(template):
         resp = client.models.generate_content(
             model="gemini-2.0-flash",
-            contents=_build_prompt(template, url, keyword, page_type, brand_name, forbidden_phrases, context, business_type)
+            contents=_build_prompt(template, url, keyword, page_type, brand_name, forbidden_phrases, context, business_type, h1)
         )
         return resp.text.strip()
 
@@ -197,14 +204,14 @@ def generate_copy_gemini(api_key: str, url: str, keyword: str, page_type: str = 
 # ── Mistral ───────────────────────────────────────────────────────────────────
 def generate_copy_mistral(api_key: str, url: str, keyword: str, page_type: str = "general",
                           brand_name: str = "", forbidden_phrases: str = "", context: str = "",
-                          business_type: str = "general") -> dict:
+                          business_type: str = "general", h1: str = "") -> dict:
     client = Mistral(api_key=api_key)
 
     def call(template):
         resp = client.chat.complete(
             model="mistral-small-latest",
             max_tokens=256,
-            messages=[{"role": "user", "content": _build_prompt(template, url, keyword, page_type, brand_name, forbidden_phrases, context, business_type)}]
+            messages=[{"role": "user", "content": _build_prompt(template, url, keyword, page_type, brand_name, forbidden_phrases, context, business_type, h1)}]
         )
         return resp.choices[0].message.content.strip()
 
@@ -220,7 +227,7 @@ def generate_copy_groq(api_key: str, url: str, keyword: str, page_type: str = "g
         resp = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             max_tokens=256,
-            messages=[{"role": "user", "content": _build_prompt(template, url, keyword, page_type, brand_name, forbidden_phrases, context, business_type)}]
+            messages=[{"role": "user", "content": _build_prompt(template, url, keyword, page_type, brand_name, forbidden_phrases, context, business_type, h1)}]
         )
         return resp.choices[0].message.content.strip()
 
