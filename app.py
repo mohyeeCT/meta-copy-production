@@ -9,6 +9,7 @@ from utils.gsc import get_gsc_client, get_top_queries_for_url
 from utils.dfs import get_keyword_overview, get_keyword_difficulty
 from utils.keyword import select_keyword
 from utils.copy_gen import generate_copy
+from utils.niches import get_niche_context, NICHES
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -69,6 +70,27 @@ with st.sidebar:
         placeholder="Dayson Shalabi Burkert",
         help="If the brand is an abbreviation (e.g. DSB), enter the full name here. Each word will be added to the branded filter automatically."
     )
+    # Niche selection
+    _niche_groups = {}
+    for _nk, _nv in NICHES.items():
+        _niche_groups.setdefault(_nv["group"], []).append((_nk, _nv["label"]))
+    _niche_options = [("none", "No specific niche")]
+    for _grp in ["B2B", "Service / Local", "Ecommerce"]:
+        for _nk, _nlabel in _niche_groups.get(_grp, []):
+            _niche_options.append((_nk, f"{_grp}: {_nlabel}"))
+    _niche_keys = [k for k, _ in _niche_options]
+    _niche_labels = [l for _, l in _niche_options]
+    _niche_idx = st.session_state.get("meta_niche_idx", 0)
+    selected_niche_idx = st.selectbox(
+        "Niche",
+        range(len(_niche_options)),
+        format_func=lambda i: _niche_labels[i],
+        index=_niche_idx,
+        key="meta_niche_select"
+    )
+    selected_niche = _niche_keys[selected_niche_idx]
+    st.session_state["meta_niche_idx"] = selected_niche_idx
+
     forbidden_phrases = st.text_area(
         "Forbidden Phrases (one per line)",
         placeholder="best in class\nworld-class\namazing",
@@ -427,6 +449,7 @@ if "df" in st.session_state:
             # Generate copy
             progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: generating copy for '{selected_keyword}'...")
             try:
+                _niche_ctx = get_niche_context(selected_niche)
                 copy = generate_copy(
                     provider=ai_provider,
                     api_key=ai_key,
@@ -435,7 +458,7 @@ if "df" in st.session_state:
                     page_type=page_type,
                     brand_name=brand_name if include_brand_in_copy else "",
                     forbidden_phrases="\n".join([p.strip() for p in forbidden_phrases.strip().splitlines() if p.strip()]),
-                    context="",
+                    context=_niche_ctx,
                     business_type=business_type,
                     h1=h1_value
                 )
