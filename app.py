@@ -281,16 +281,18 @@ if "df" in st.session_state:
     # ── Main: Run ─────────────────────────────────────────────────────────────
     st.header("5. Run")
 
+    manual_keyword_available = keyword_col != "(none)"
+    gsc_available = bool(gsc_site_url)
     ready = (
         sa_file is not None and
         dfs_login and dfs_password and
         ai_key and
-        gsc_site_url and
+        (gsc_available or manual_keyword_available) and
         "df" in st.session_state
     )
 
     if not ready:
-        st.warning("Complete all credentials and settings in the sidebar before running.")
+        st.warning("Complete credentials and provide either a keyword column or a GSC property before running.")
 
     run_btn = st.button("Generate Copy", type="primary", disabled=not ready)
 
@@ -298,7 +300,7 @@ if "df" in st.session_state:
         df_work = st.session_state["df"].copy()
         sa_info = st.session_state["sa_info"]
 
-        gsc_client = get_gsc_client(sa_info)
+        gsc_client = get_gsc_client(sa_info) if gsc_site_url else None
 
         # Merge manual + full brand name words + auto-detected confirmed branded terms
         _manual    = [t.strip().lower() for t in branded_terms_input.strip().splitlines() if t.strip()]
@@ -337,6 +339,7 @@ if "df" in st.session_state:
                     "description_length": None,
                     "optimised_h1": None,
                     "h1_length": None,
+                    "review_notes": None,
                     "status": "skipped: invalid URL"
                 })
                 progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: skipped")
@@ -369,7 +372,11 @@ if "df" in st.session_state:
             else:
                 # Priority 2: GSC
                 progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: fetching GSC data...")
-                gsc_queries = get_top_queries_for_url(gsc_client, gsc_site_url, url, top_n=10)
+                if gsc_client:
+                    gsc_queries = get_top_queries_for_url(gsc_client, gsc_site_url, url, top_n=10)
+                else:
+                    gsc_queries = []
+                    keyword_source = "fallback: no manual keyword and GSC disabled"
 
                 # Surface API errors rather than silently returning empty
                 if gsc_queries and "_error" in gsc_queries[0]:
@@ -384,6 +391,13 @@ if "df" in st.session_state:
                     progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: fetching DFS data...")
                     dfs_volumes = get_keyword_overview(dfs_login, dfs_password, query_list, location_code=int(location_code))
                     dfs_difficulty = get_keyword_difficulty(dfs_login, dfs_password, query_list, location_code=int(location_code))
+                    dfs_errors = []
+                    if "_error" in dfs_volumes:
+                        dfs_errors.append(f"DFS volume error: {dfs_volumes['_error'][:120]}")
+                        dfs_volumes = {}
+                    if "_error" in dfs_difficulty:
+                        dfs_errors.append(f"DFS difficulty error: {dfs_difficulty['_error'][:120]}")
+                        dfs_difficulty = {}
 
                     # Merge volume + difficulty
                     dfs_merged = {}
@@ -403,7 +417,7 @@ if "df" in st.session_state:
 
                     if not result["fallback_triggered"]:
                         selected_keyword    = result["selected_keyword"]
-                        keyword_source      = "gsc+dfs"
+                        keyword_source      = "gsc+dfs" if not dfs_errors else "gsc+dfs warning: " + " | ".join(dfs_errors)
                         runner_up_kw        = result["runner_up"]["keyword"] if result["runner_up"] else None
                         kw_volume           = result["selected_keyword_data"]["volume"] if result["selected_keyword_data"] else None
                         kw_difficulty       = result["selected_keyword_data"]["difficulty"] if result["selected_keyword_data"] else None
@@ -418,7 +432,7 @@ if "df" in st.session_state:
                         if non_branded:
                             top_gsc = sorted(non_branded, key=lambda x: x["impressions"], reverse=True)[0]
                             selected_keyword = top_gsc["query"]
-                            keyword_source = "gsc-only (low DFS volume)"
+                            keyword_source = "gsc-only (low DFS volume)" if not dfs_errors else "gsc-only warning: " + " | ".join(dfs_errors)
                             runner_up_kw = non_branded[1]["query"] if len(non_branded) > 1 else None
                         else:
                             keyword_source = f"fallback: no keyword passed scoring (GSC queries: {_gsc_debug})"
@@ -441,6 +455,7 @@ if "df" in st.session_state:
                     "description_length": None,
                     "optimised_h1": None,
                     "h1_length": None,
+                    "review_notes": None,
                     "status": f"skipped: {keyword_source}"
                 })
                 progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: skipped ({keyword_source})")
@@ -477,6 +492,7 @@ if "df" in st.session_state:
                     "title_length": len(copy["title"]),
                     "description_length": len(copy["description"]),
                     "h1_length": len(copy.get("h1_optimised", "")),
+                    "review_notes": copy.get("review_notes", ""),
                     "status": "ok"
                 })
             except Exception as e:
@@ -493,6 +509,7 @@ if "df" in st.session_state:
                     "description_length": None,
                     "optimised_h1": None,
                     "h1_length": None,
+                    "review_notes": None,
                     "status": f"error: {str(e)}"
                 })
                 skipped.append({"row": i + 2, "reason": str(e)})
@@ -583,6 +600,7 @@ if "results_df" in st.session_state:
                 "title_length":         "Title Length",
                 "description_length":   "Description Length",
                 "h1_length":            "H1 Length",
+                "review_notes":         "Review Notes",
                 "status":               "Copy Status"
             }
             with st.spinner("Writing to sheet..."):

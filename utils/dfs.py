@@ -1,5 +1,12 @@
-import requests
-from requests.auth import HTTPBasicAuth
+def _post_json(url: str, payload: list, dfs_login: str, dfs_password: str):
+    import requests
+    from requests.auth import HTTPBasicAuth
+
+    return requests.post(
+        url,
+        json=payload,
+        auth=HTTPBasicAuth(dfs_login, dfs_password)
+    )
 
 
 def get_keyword_overview(dfs_login: str, dfs_password: str, keywords: list, location_code: int = 2840, language_code: str = "en") -> dict:
@@ -19,11 +26,7 @@ def get_keyword_overview(dfs_login: str, dfs_password: str, keywords: list, loca
     ]
 
     try:
-        response = requests.post(
-            url,
-            json=payload,
-            auth=HTTPBasicAuth(dfs_login, dfs_password)
-        )
+        response = _post_json(url, payload, dfs_login, dfs_password)
         response.raise_for_status()
         data = response.json()
 
@@ -39,7 +42,7 @@ def get_keyword_overview(dfs_login: str, dfs_password: str, keywords: list, loca
         return results
 
     except Exception as e:
-        return {}
+        return {"_error": str(e)}
 
 
 def get_keyword_difficulty(dfs_login: str, dfs_password: str, keywords: list, location_code: int = 2840, language_code: str = "en") -> dict:
@@ -58,11 +61,7 @@ def get_keyword_difficulty(dfs_login: str, dfs_password: str, keywords: list, lo
     ]
 
     try:
-        response = requests.post(
-            url,
-            json=payload,
-            auth=HTTPBasicAuth(dfs_login, dfs_password)
-        )
+        response = _post_json(url, payload, dfs_login, dfs_password)
         response.raise_for_status()
         data = response.json()
 
@@ -77,4 +76,4 @@ def get_keyword_difficulty(dfs_login: str, dfs_password: str, keywords: list, lo
         return results
 
     except Exception as e:
-        return {}
+        return {"_error": str(e)}

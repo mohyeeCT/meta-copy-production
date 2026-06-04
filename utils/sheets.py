@@ -1,15 +1,22 @@
-import gspread
 import pandas as pd
-from google.oauth2.service_account import Credentials
-import json
-import streamlit as st
 
 SCOPES = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive.readonly"
 ]
 
+
+def _rowcol_to_a1(row: int, col: int) -> str:
+    letters = ""
+    while col:
+        col, remainder = divmod(col - 1, 26)
+        letters = chr(65 + remainder) + letters
+    return f"{letters}{row}"
+
 def get_gspread_client(service_account_info: dict):
+    import gspread
+    from google.oauth2.service_account import Credentials
+
     creds = Credentials.from_service_account_info(service_account_info, scopes=SCOPES)
     return gspread.authorize(creds)
 
@@ -20,8 +27,14 @@ def load_sheet(client, sheet_url: str, worksheet_name: str = None) -> pd.DataFra
         ws = spreadsheet.worksheet(worksheet_name)
     else:
         ws = spreadsheet.get_worksheet(0)
-    data = ws.get_all_records()
-    return pd.DataFrame(data), spreadsheet, ws
+    values = ws.get_all_values()
+    if not values:
+        return pd.DataFrame(), spreadsheet, ws
+    headers = values[0]
+    rows = values[1:]
+    width = len(headers)
+    normalised_rows = [row + [""] * (width - len(row)) for row in rows]
+    return pd.DataFrame(normalised_rows, columns=headers), spreadsheet, ws
 
 
 def write_results_to_sheet(ws, df: pd.DataFrame, result_col_map: dict):
@@ -32,8 +45,6 @@ def write_results_to_sheet(ws, df: pd.DataFrame, result_col_map: dict):
     result_col_map: { df_col_key: sheet_column_header, ... }
     Assumes sheet has a header row and data starts at row 2.
     """
-    from gspread.utils import rowcol_to_a1
-
     headers = ws.row_values(1)
     updates = []
 
@@ -47,14 +58,14 @@ def write_results_to_sheet(ws, df: pd.DataFrame, result_col_map: dict):
             col_index = len(headers)
             # Write header in same batch
             updates.append({
-                "range": rowcol_to_a1(1, col_index),
+                "range": _rowcol_to_a1(1, col_index),
                 "values": [[col_header]]
             })
         else:
             col_index = headers.index(col_header) + 1
 
         # Build column values as a vertical range (single batch call)
-        col_letter = rowcol_to_a1(1, col_index)[:-1]  # e.g. "D"
+        col_letter = _rowcol_to_a1(1, col_index)[:-1]  # e.g. "D"
         start_row  = 2
         end_row    = start_row + len(df) - 1
         range_str  = f"{col_letter}{start_row}:{col_letter}{end_row}"
