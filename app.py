@@ -157,15 +157,25 @@ if "df" in st.session_state:
 
     # ── Main: GSC settings ────────────────────────────────────────────────────
     st.header("3. GSC Settings")
-    gsc_site_url = st.text_input(
-        "GSC Property URL",
-        placeholder="https://example.com/ or sc-domain:example.com"
+    use_gsc = st.toggle(
+        "Use GSC for keyword selection",
+        value=True,
+        help="When enabled, pulls top queries from GSC to select the target keyword. Disable if you are providing keywords manually in the sheet or want to run without GSC access."
     )
+    gsc_site_url = ""
+    if use_gsc:
+        gsc_site_url = st.text_input(
+            "GSC Property URL",
+            placeholder="https://example.com/ or sc-domain:example.com"
+        )
+    else:
+        st.caption("GSC disabled. Keyword will be taken from the sheet keyword column. Rows with no keyword will be skipped.")
 
     # ── Main: Brand Detection ─────────────────────────────────────────────────
     st.header("4. Brand Detection")
 
     detect_ready = (
+        use_gsc and
         sa_file is not None and
         gsc_site_url and
         "df" in st.session_state and
@@ -276,23 +286,24 @@ if "df" in st.session_state:
         elif "detected_branded" not in st.session_state:
             st.caption("Click 'Auto-detect Branded Terms' to scan GSC queries before running.")
     else:
-        st.caption("Complete credentials and connect your sheet first.")
+        if use_gsc:
+            st.caption("Complete credentials, connect your sheet, and enter the GSC property first.")
+        else:
+            st.caption("GSC disabled. Brand auto-detection is unavailable; use manual branded terms in the sidebar if needed.")
 
     # ── Main: Run ─────────────────────────────────────────────────────────────
     st.header("5. Run")
 
-    manual_keyword_available = keyword_col != "(none)"
-    gsc_available = bool(gsc_site_url)
     ready = (
         sa_file is not None and
         dfs_login and dfs_password and
         ai_key and
-        (gsc_available or manual_keyword_available) and
+        (not use_gsc or gsc_site_url) and
         "df" in st.session_state
     )
 
     if not ready:
-        st.warning("Complete credentials and provide either a keyword column or a GSC property before running.")
+        st.warning("Complete credentials and settings before running.")
 
     run_btn = st.button("Generate Copy", type="primary", disabled=not ready)
 
@@ -300,7 +311,7 @@ if "df" in st.session_state:
         df_work = st.session_state["df"].copy()
         sa_info = st.session_state["sa_info"]
 
-        gsc_client = get_gsc_client(sa_info) if gsc_site_url else None
+        gsc_client = get_gsc_client(sa_info) if use_gsc else None
 
         # Merge manual + full brand name words + auto-detected confirmed branded terms
         _manual    = [t.strip().lower() for t in branded_terms_input.strip().splitlines() if t.strip()]
