@@ -89,10 +89,10 @@ COPY_PROMPT = """You are a senior SEO copywriter with deep knowledge of how diff
 
 Write one title tag, one meta description, and one optimised H1 for the following page.
 
-Hard rules:
-- Title maximum 60 characters. Count carefully. This is a strict limit.
-- Meta description maximum 155 characters. Count carefully. This is a strict limit.
-- H1 has no hard character limit but should aim for under 70 characters.
+Guidance:
+- Title should usually land around 50 to 65 characters, but prioritize clarity, specificity, and click appeal when a slightly longer title reads better.
+- Meta description should usually land around 140 to 165 characters, but prioritize a complete, compelling summary over strict character counting.
+- H1 has no hard character limit but should usually stay concise and easy to scan.
 - Include the target keyword naturally, ideally near the start where it fits.
 - No all-caps, excessive punctuation, or clickbait.
 - No padding or filler words.
@@ -166,20 +166,10 @@ def _parse_copy_json(raw: str) -> dict:
     return data
 
 
-def _fit_to_limit(text: str, limit: int) -> str:
-    text = (text or "").strip()
-    if len(text) <= limit:
-        return text
-    shortened = text[:limit].rstrip()
-    if " " in shortened:
-        shortened = shortened.rsplit(" ", 1)[0].rstrip()
-    return shortened[:limit].rstrip(" ,|")
-
-
 def _normalise_copy_result(data: dict, brand_name: str = "") -> dict:
     return {
-        "title": _fit_to_limit(_sanitise(data.get("title", ""), brand_name), 60),
-        "description": _fit_to_limit(_sanitise(data.get("description", ""), brand_name), 155),
+        "title": _sanitise(data.get("title", ""), brand_name),
+        "description": _sanitise(data.get("description", ""), brand_name),
         "h1_optimised": _sanitise(data.get("h1_optimised", ""), brand_name),
         "review_notes": _sanitise(data.get("review_notes", ""), brand_name),
     }

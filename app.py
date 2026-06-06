@@ -564,9 +564,9 @@ if "results_df" in st.session_state:
             ti = results_df.columns.get_loc("title_length")
             di = results_df.columns.get_loc("description_length")
             if row["title_length"] and int(row["title_length"]) > 60:
-                styles[ti] = "background-color: #ffe0e0"
+                styles[ti] = "background-color: #fff3cd"
             if row["description_length"] and int(row["description_length"]) > 155:
-                styles[di] = "background-color: #ffe0e0"
+                styles[di] = "background-color: #fff3cd"
             if "h1_length" in results_df.columns:
                 hi = results_df.columns.get_loc("h1_length")
                 if row["h1_length"] and int(row["h1_length"]) > 70:
@@ -574,6 +574,8 @@ if "results_df" in st.session_state:
         except Exception:
             pass
         return styles
+
+    st.caption("Length columns are guidance only. Longer titles and descriptions are allowed when they read better and describe the page more clearly.")
 
     st.dataframe(
         results_df.style.apply(highlight_length, axis=1),
