@@ -90,8 +90,9 @@ COPY_PROMPT = """You are a senior SEO copywriter with deep knowledge of how diff
 Write one title tag, one meta description, and one optimised H1 for the following page.
 
 Hard rules:
-- Title maximum 60 characters. Count carefully. This is a strict limit.
-- Meta description maximum 155 characters. Count carefully. This is a strict limit.
+- Title should aim for about 50 to 80 characters.
+- Meta description should aim for about 140 to 180 characters.
+- Prioritise strong, natural copy over mechanically forcing the old 60/155-character limits.
 - H1 has no hard character limit but should aim for under 70 characters.
 - Include the target keyword naturally, ideally near the start where it fits.
 - No all-caps, excessive punctuation, or clickbait.
@@ -123,7 +124,10 @@ Page details:
 - Forbidden phrases: {forbidden_phrases}
 - Additional context: {context}
 
-Important: The H1 tells you the current page topic. Use it to ensure the outputs reflect the actual page content and differentiate product variations from each other."""
+Review notes:
+- If output avoids or softens a risky unsupported claim, explain that briefly in review_notes.
+- If output is clean, use an empty string for review_notes.
+"""
 
 
 TITLE_PROMPT = COPY_PROMPT
@@ -178,8 +182,8 @@ def _fit_to_limit(text: str, limit: int) -> str:
 
 def _normalise_copy_result(data: dict, brand_name: str = "") -> dict:
     return {
-        "title": _fit_to_limit(_sanitise(data.get("title", ""), brand_name), 60),
-        "description": _fit_to_limit(_sanitise(data.get("description", ""), brand_name), 155),
+        "title": _fit_to_limit(_sanitise(data.get("title", ""), brand_name), 80),
+        "description": _fit_to_limit(_sanitise(data.get("description", ""), brand_name), 180),
         "h1_optimised": _sanitise(data.get("h1_optimised", ""), brand_name),
         "review_notes": _sanitise(data.get("review_notes", ""), brand_name),
     }
