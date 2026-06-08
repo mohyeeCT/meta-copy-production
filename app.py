@@ -14,7 +14,6 @@ from utils.niches import get_niche_context, NICHES
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
     page_title="Meta Copy Production",
-    page_icon="✍️",
     layout="wide"
 )
 
