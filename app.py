@@ -662,17 +662,19 @@ if "results_df" in st.session_state:
         if st.button("Write Back to Google Sheet"):
             ws  = st.session_state["ws"]
             col_map = {
-"selected_keyword":     "SEO Target Keyword",
-                "keyword_source":       "Keyword Source",
-                "runner_up":            "Runner Up Keyword",
-                "generated_title":      "Generated Title",
-                "generated_description":"Generated Description",
-                "optimised_h1":         "Optimised H1",
-                "title_length":         "Title Length",
-                "description_length":   "Description Length",
-                "h1_length":            "H1 Length",
-                "review_notes":         "Review Notes",
-                "status":               "Copy Status"
+                "selected_keyword":      "SEO Target Keyword",
+                "keyword_source":        "Keyword Source",
+                "runner_up":             "Runner Up Keyword",
+                "kw_volume":             "Keyword Volume",
+                "kw_difficulty":         "Keyword Difficulty",
+                "generated_title":       "Generated Title",
+                "generated_description": "Generated Description",
+                "optimised_h1":          "Optimised H1",
+                "title_length":          "Title Length",
+                "description_length":    "Description Length",
+                "h1_length":             "H1 Length",
+                "review_notes":          "Review Notes",
+                "status":                "Copy Status"
             }
             with st.spinner("Writing to sheet..."):
                 try:
