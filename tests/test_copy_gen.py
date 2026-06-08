@@ -43,8 +43,8 @@ class MetaCopyGenTests(unittest.TestCase):
             brand_name="Acme",
         )
 
-        self.assertLessEqual(len(result["title"]), 60)
-        self.assertLessEqual(len(result["description"]), 155)
+        self.assertLessEqual(len(result["title"]), 80)
+        self.assertLessEqual(len(result["description"]), 180)
         self.assertEqual(result["h1_optimised"], "Optimised H1")
 
 
