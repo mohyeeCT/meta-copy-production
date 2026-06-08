@@ -6,7 +6,7 @@ from io import StringIO
 
 from utils.sheets import get_gspread_client, load_sheet, write_results_to_sheet
 from utils.gsc import get_gsc_client, get_top_queries_for_url
-from utils.dfs import get_keyword_overview
+from utils.dfs import get_keyword_overview, get_keyword_difficulty
 from utils.keyword import select_keyword
 from utils.copy_gen import generate_copy
 from utils.niches import get_niche_context, NICHES
@@ -415,6 +415,7 @@ if "df" in st.session_state:
             selected_keyword = None
             runner_up_kw = None
             kw_volume = None
+            kw_difficulty = None
 
             if manual_kw:
                 selected_keyword = manual_kw
@@ -423,6 +424,11 @@ if "df" in st.session_state:
                 try:
                     _m_vol = get_keyword_overview(dfs_login, dfs_password, [manual_kw], location_code=int(location_code))
                     kw_volume = _m_vol.get(manual_kw.lower(), {}).get("volume")
+                except Exception:
+                    pass
+                try:
+                    _m_diff = get_keyword_difficulty(dfs_login, dfs_password, [manual_kw], location_code=int(location_code))
+                    kw_difficulty = _m_diff.get(manual_kw.lower(), {}).get("difficulty")
                 except Exception:
                     pass
             else:
@@ -448,16 +454,19 @@ if "df" in st.session_state:
                     dfs_errors = []
                     try:
                         dfs_volumes = get_keyword_overview(dfs_login, dfs_password, query_list, location_code=int(location_code))
+                        dfs_difficulty = get_keyword_difficulty(dfs_login, dfs_password, query_list, location_code=int(location_code))
                     except RuntimeError as dfs_exc:
                         dfs_errors.append(str(dfs_exc)[:120])
                         dfs_volumes = {}
+                        dfs_difficulty = {}
 
-                    # Build dfs_merged for keyword scoring (difficulty fixed at 50)
+                    # Merge volume + difficulty for keyword scoring
                     dfs_merged = {}
                     for kw in query_list:
                         kw_lower = kw.lower()
                         vol = dfs_volumes.get(kw_lower, {}).get("volume", 0)
-                        dfs_merged[kw_lower] = {"volume": vol, "difficulty": 50}
+                        diff = dfs_difficulty.get(kw_lower, {}).get("difficulty", 50)
+                        dfs_merged[kw_lower] = {"volume": vol, "difficulty": diff}
 
                     result = select_keyword(
                         gsc_queries=gsc_queries,
@@ -473,6 +482,7 @@ if "df" in st.session_state:
                         keyword_source      = "gsc+dfs" if not dfs_errors else "gsc+dfs warning: " + " | ".join(dfs_errors)
                         runner_up_kw        = result["runner_up"]["keyword"] if result["runner_up"] else None
                         kw_volume           = result["selected_keyword_data"]["volume"] if result["selected_keyword_data"] else None
+                        kw_difficulty       = result["selected_keyword_data"]["difficulty"] if result["selected_keyword_data"] else None
                     else:
                         # Secondary fallback: use top GSC query by impressions
                         # (ignoring volume filter - useful for niche sites with low DFS volume)
@@ -486,9 +496,10 @@ if "df" in st.session_state:
                             selected_keyword = top_gsc["query"]
                             keyword_source = "gsc-only (low DFS volume)" if not dfs_errors else "gsc-only warning: " + " | ".join(dfs_errors)
                             runner_up_kw = non_branded[1]["query"] if len(non_branded) > 1 else None
-                            # Populate volume from DFS data already fetched
+                            # Populate volume + difficulty from DFS data already fetched
                             _fb_dfs = dfs_merged.get(selected_keyword.lower(), {})
                             kw_volume = _fb_dfs.get("volume")
+                            kw_difficulty = _fb_dfs.get("difficulty")
                         else:
                             keyword_source = f"fallback: no keyword passed scoring (GSC queries: {_gsc_debug})"
 
@@ -503,6 +514,7 @@ if "df" in st.session_state:
                     "keyword_source": keyword_source,
                     "runner_up": runner_up_kw,
                     "kw_volume": kw_volume,
+                    "kw_difficulty": kw_difficulty,
                     "generated_title": None,
                     "generated_description": None,
                     "title_length": None,
@@ -543,6 +555,7 @@ if "df" in st.session_state:
                     "h1_source": h1_source,
                     "selected_keyword": selected_keyword,
                     "kw_volume": kw_volume,
+                    "kw_difficulty": kw_difficulty,
                     "keyword_source": keyword_source,
                     "runner_up": runner_up_kw,
                     "generated_title": copy["title"],
@@ -561,6 +574,7 @@ if "df" in st.session_state:
                     "keyword_source": keyword_source,
                     "runner_up": runner_up_kw,
                     "kw_volume": kw_volume,
+                    "kw_difficulty": kw_difficulty,
                     "generated_title": None,
                     "generated_description": None,
                     "title_length": None,
@@ -655,6 +669,7 @@ if "results_df" in st.session_state:
                 "keyword_source":        "Keyword Source",
                 "runner_up":             "Runner Up Keyword",
                 "kw_volume":             "Keyword Volume",
+                "kw_difficulty":         "Keyword Difficulty",
                 "generated_title":       "Generated Title",
                 "generated_description": "Generated Description",
                 "optimised_h1":          "Optimised H1",
