@@ -130,9 +130,108 @@ Review notes:
 """
 
 
-TITLE_PROMPT = COPY_PROMPT
-DESCRIPTION_PROMPT = COPY_PROMPT
-H1_PROMPT = COPY_PROMPT
+TITLE_PROMPT = """You are a senior SEO copywriter with deep knowledge of how different business types require different copy strategies.
+
+Write a title tag for the following page.
+
+Hard rules:
+- Aim for about 50 to 80 characters.
+- Prioritise a strong, natural title over mechanically forcing the old 60-character limit.
+- Include the target keyword naturally, ideally near the start
+- No all-caps, excessive punctuation, or clickbait
+- No padding or filler words
+- Never use em dashes (—) anywhere in the output
+- If brand name is provided, append it at the end after a pipe character
+- Use the brand name EXACTLY as provided, preserving capitalisation and full name (e.g. "DSB Law Firm" not "dsb" or "DSB")
+- Return ONLY the title tag text. No explanation, no quotes, no extra text.
+
+Business context:
+- Business type: {business_type}
+- Target buyer: {buyer}
+- Buyer intent: {intent}
+- Recommended title pattern: {title_pattern}
+- Avoid: {avoid}
+
+Page details:
+- URL: {url}
+- Page type: {page_type}
+- Target keyword: {keyword}
+- Brand name: {brand_name}
+- Current H1 (use as topic signal for what this page is actually about): {h1}
+- Forbidden phrases: {forbidden_phrases}
+- Additional context: {context}
+
+{unsupported_claim_guardrail}
+
+Important: The H1 tells you the current page topic. Use it to ensure the title tag reflects the actual page content and differentiates product variations from each other."""
+
+
+DESCRIPTION_PROMPT = """You are a senior SEO copywriter with deep knowledge of how different business types require different copy strategies.
+
+Write a meta description for the following page.
+
+Hard rules:
+- Aim for about 140 to 180 characters.
+- Prioritise a clear, persuasive description over mechanically forcing the old 155-character limit.
+- Include the target keyword naturally
+- Do not duplicate the title tag
+- No all-caps, excessive punctuation, or clickbait
+- Never use em dashes (—) anywhere in the output. Use a comma or rewrite the sentence instead.
+- Use the brand name EXACTLY as provided, preserving capitalisation and full name
+- Return ONLY the meta description text. No explanation, no quotes, no extra text.
+
+Business context:
+- Business type: {business_type}
+- Target buyer: {buyer}
+- Buyer intent: {intent}
+- Recommended tone: {tone}
+- Good CTA examples for this type: {cta_examples}
+- Recommended description pattern: {desc_pattern}
+- Avoid: {avoid}
+
+Page details:
+- URL: {url}
+- Page type: {page_type}
+- Target keyword: {keyword}
+- Brand name: {brand_name}
+- Current H1 (use as topic signal for what this page is actually about): {h1}
+- Forbidden phrases: {forbidden_phrases}
+- Additional context: {context}
+
+{unsupported_claim_guardrail}
+
+Important: The H1 tells you the current page topic. Use it to write a description that accurately reflects the page content and stands out from similar pages on the same site."""
+
+
+H1_PROMPT = """You are a senior SEO copywriter. Write an optimised H1 tag for the following page.
+
+Hard rules:
+- No hard character limit but aim for under 70 characters
+- Include the target keyword naturally, ideally near the start
+- Do NOT include the brand name (H1 is on-page copy, brand is not needed)
+- No all-caps, excessive punctuation, or clickbait
+- Never use em dashes (—) anywhere in the output
+- Do not duplicate the title tag word for word — the H1 should be distinct
+- Return ONLY the H1 text. No explanation, no quotes, no extra text.
+
+Business context:
+- Business type: {business_type}
+- Target buyer: {buyer}
+- Buyer intent: {intent}
+- Recommended tone: {tone}
+- Avoid: {avoid}
+
+Page details:
+- URL: {url}
+- Page type: {page_type}
+- Target keyword: {keyword}
+- Current H1 (use as reference to improve on, not to copy): {h1}
+- Forbidden phrases: {forbidden_phrases}
+- Additional context: {context}
+
+{unsupported_claim_guardrail}
+
+Important: The current H1 shows what topic the page covers. Your job is to improve it by making it more specific, keyword-focused, and aligned with what the target buyer is searching for. Do not produce the same H1 unless it is already optimal."""
 
 
 def _build_prompt(template: str, url: str, keyword: str, page_type: str,
