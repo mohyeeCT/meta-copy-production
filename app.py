@@ -405,14 +405,13 @@ if "df" in st.session_state:
                     # Store GSC queries in result for diagnostics
                     _gsc_debug = ", ".join([f"{q['query']} (pos {q['position']}, imp {q['impressions']})" for q in gsc_queries])
                     progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: fetching DFS data...")
-                    dfs_volumes = get_keyword_overview(dfs_login, dfs_password, query_list, location_code=int(location_code))
-                    dfs_difficulty = get_keyword_difficulty(dfs_login, dfs_password, query_list, location_code=int(location_code))
                     dfs_errors = []
-                    if "_error" in dfs_volumes:
-                        dfs_errors.append(f"DFS volume error: {dfs_volumes['_error'][:120]}")
+                    try:
+                        dfs_volumes = get_keyword_overview(dfs_login, dfs_password, query_list, location_code=int(location_code))
+                        dfs_difficulty = get_keyword_difficulty(dfs_login, dfs_password, query_list, location_code=int(location_code))
+                    except RuntimeError as dfs_exc:
+                        dfs_errors.append(str(dfs_exc)[:120])
                         dfs_volumes = {}
-                    if "_error" in dfs_difficulty:
-                        dfs_errors.append(f"DFS difficulty error: {dfs_difficulty['_error'][:120]}")
                         dfs_difficulty = {}
 
                     # Merge volume + difficulty
