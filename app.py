@@ -421,6 +421,14 @@ if "df" in st.session_state:
             if manual_kw:
                 selected_keyword = manual_kw
                 keyword_source = "manual"
+                # Enrich manual keyword with DFS volume + difficulty
+                try:
+                    _m_vol = get_keyword_overview(dfs_login, dfs_password, [manual_kw], location_code=int(location_code))
+                    _m_diff = get_keyword_difficulty(dfs_login, dfs_password, [manual_kw], location_code=int(location_code))
+                    kw_volume = _m_vol.get(manual_kw.lower(), {}).get("volume")
+                    kw_difficulty = _m_diff.get(manual_kw.lower(), {}).get("difficulty")
+                except Exception:
+                    pass  # DFS enrichment is best-effort for manual keywords
             else:
                 # Priority 2: GSC
                 progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: fetching GSC data...")
