@@ -70,8 +70,9 @@ def get_keyword_difficulty(dfs_login: str, dfs_password: str, keywords: list, lo
             for item in task.get("result", []) or []:
                 for kw_item in item.get("items", []) or []:
                     kw = kw_item.get("keyword", "").lower()
+                    kd = kw_item.get("keyword_difficulty")
                     results[kw] = {
-                        "difficulty": kw_item.get("keyword_difficulty") or 50
+                        "difficulty": kd if kd is not None else 50
                     }
         return results
 
