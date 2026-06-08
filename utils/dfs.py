@@ -37,7 +37,6 @@ def get_keyword_overview(dfs_login: str, dfs_password: str, keywords: list, loca
                 kw = item.get("keyword", "").lower()
                 results[kw] = {
                     "volume": item.get("search_volume") or 0,
-                    "difficulty": 50  # Search volume endpoint doesn't include KD; use labs endpoint if needed
                 }
         return results
 
@@ -45,35 +44,4 @@ def get_keyword_overview(dfs_login: str, dfs_password: str, keywords: list, loca
         raise RuntimeError(f"DataForSEO keyword volume failed: {e}") from e
 
 
-def get_keyword_difficulty(dfs_login: str, dfs_password: str, keywords: list, location_code: int = 2840, language_code: str = "en") -> dict:
-    """
-    Fetches keyword difficulty scores from DataForSEO Labs.
-    Returns dict keyed by keyword: { difficulty }
-    """
-    url = "https://api.dataforseo.com/v3/dataforseo_labs/google/bulk_keyword_difficulty/live"
 
-    payload = [
-        {
-            "keywords": keywords,
-            "location_code": location_code,
-            "language_code": language_code
-        }
-    ]
-
-    try:
-        response = _post_json(url, payload, dfs_login, dfs_password)
-        response.raise_for_status()
-        data = response.json()
-
-        results = {}
-        tasks = data.get("tasks", [])
-        for task in tasks:
-            for item in task.get("result", []) or []:
-                kw = item.get("keyword", "").lower()
-                results[kw] = {
-                    "difficulty": item.get("keyword_difficulty") or 50
-                }
-        return results
-
-    except Exception as e:
-        raise RuntimeError(f"DataForSEO keyword difficulty failed: {e}") from e
