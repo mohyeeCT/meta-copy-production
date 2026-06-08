@@ -33,11 +33,30 @@ class MetaCopyGenTests(unittest.TestCase):
         self.assertEqual(parsed["description"], "B")
         self.assertEqual(parsed["h1_optimised"], "C")
 
-    def test_normalise_copy_result_enforces_seo_lengths(self):
+    def test_prompt_uses_length_guidance_not_strict_limits(self):
+        prompt = copy_gen._build_prompt(
+            copy_gen.COPY_PROMPT,
+            url="https://example.com/services",
+            keyword="commercial roofing services",
+            page_type="service",
+            brand_name="Acme",
+            forbidden_phrases="",
+            context="",
+            business_type="service",
+            h1="Commercial Roofing Services",
+        )
+
+        self.assertIn("aim for about 50 to 80 characters", prompt)
+        self.assertIn("aim for about 140 to 180 characters", prompt)
+        self.assertNotIn("This is a strict limit", prompt)
+
+    def test_normalise_copy_result_preserves_longer_copy(self):
+        long_title = "This is a very long SEO title that should stay intact for review instead of being shortened automatically"
+        long_description = " ".join(["description"] * 30)
         result = copy_gen._normalise_copy_result(
             {
-                "title": "This is a very long SEO title that should be shortened before sheet writeback",
-                "description": " ".join(["description"] * 30),
+                "title": long_title,
+                "description": long_description,
                 "h1_optimised": "Optimised H1",
             },
             brand_name="Acme",
