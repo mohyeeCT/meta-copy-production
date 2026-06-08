@@ -70,7 +70,8 @@ def select_keyword(
     branded_terms: list = None,
     position_cutoff: float = 1.0,
     min_volume: int = 10,
-    h1: str = ""
+    h1: str = "",
+    restricted_industry: bool = False,
 ) -> dict:
     """
     Scores and selects the best target keyword from GSC queries + DFS data.
@@ -79,38 +80,19 @@ def select_keyword(
     dfs_data: dict keyed by keyword (lowercase): { volume, difficulty }
     branded_terms: list of brand name strings to filter out
     position_cutoff: ONLY filters position 1.0 or better (default).
-                     Position is otherwise a scoring signal, not a hard filter.
-                     We do NOT exclude good-ranking keywords — if the page ranks
-                     well for a keyword, that proves relevance and it's a valid target.
-    min_volume: skip keywords below this monthly search volume
+    min_volume: skip keywords below this monthly search volume (ignored in restricted mode)
     h1: current page H1, used as topical relevance signal
+    restricted_industry: when True, ignore volume/difficulty and score on GSC engagement
+        signals only. Use for industries where DFS suppresses volume data
+        (CBD, firearms, dispensaries, adult content).
 
-    Scoring formula:
-        score = (volume / difficulty)
-                * log1p(impressions)
-                * (1 + ctr)
-                * position_score
-                * relevance_score
+    Standard scoring formula:
+        score = (volume / difficulty) * log1p(impressions) * (1 + ctr)
+                * position_score * relevance_score
 
-    position_score:
-        - Does NOT penalise positions 1-3. Ranking well = keyword is proven relevant.
-        - Rewards positions 4-20 as opportunity window.
-        - Penalises positions 20+ (weak relevance signal).
-        - Formula: 1 / (1 + max(0, position - 20) * 0.1)
-          → positions 1-20 all score 1.0, position 30 scores 0.5
-
-    relevance_score:
-        - Word overlap between query and H1
-        - 0.5 (no overlap) to 1.5 (full overlap)
-
-    Returns:
-    {
-        selected_keyword: str or None,
-        selected_keyword_data: dict or None,
-        runner_up: dict or None,
-        all_scored: list,
-        fallback_triggered: bool
-    }
+    Restricted scoring formula (no DFS dependency):
+        score = log1p(impressions) * max(log1p(clicks), 1.0) * (1 + ctr)
+                * position_score * relevance_score
     """
     branded_terms = [t.lower() for t in (branded_terms or [])]
     scored = []
@@ -123,39 +105,38 @@ def select_keyword(
         if any(term in query for term in branded_terms):
             continue
 
-        # Filter: only exclude genuine position 1 with strong CTR
-        # (title tag is already perfect for this keyword)
+        # Filter: only exclude genuine position 1
         if position <= position_cutoff:
-            continue
-
-        # Match to DFS data
-        dfs = dfs_data.get(query)
-        if not dfs:
-            continue
-
-        volume     = dfs.get("volume", 0)
-        difficulty = dfs.get("difficulty", 50) or 50
-
-        # Filter: low volume
-        if volume < min_volume:
             continue
 
         impressions = row.get("impressions", 1)
         clicks      = row.get("clicks", 0)
         ctr         = min(row.get("ctr", 0), 0.15)  # cap CTR at 15% to prevent outlier domination
 
-        # Position score: positions 1-20 are all valid targets (score 1.0)
-        # Beyond 20, score drops to reflect weak relevance signal
-        position_score = 1 / (1 + max(0, position - 20) * 0.1)
+        # Match to DFS data
+        dfs        = dfs_data.get(query)
+        volume     = dfs.get("volume", 0) if dfs else 0
+        difficulty = (dfs.get("difficulty", 50) if dfs else 50) or 50
 
-        # CTR boost: rewards queries users actually click on
-        ctr_boost = 1 + ctr
+        if restricted_industry:
+            # Ignore volume/difficulty — score purely on GSC engagement signals
+            # so industries where DFS suppresses data still get a useful keyword
+            clicks_boost   = max(math.log1p(clicks), 1.0)
+            position_score = 1 / (1 + max(0, position - 20) * 0.1)
+            ctr_boost      = 1 + ctr
+            relevance      = _relevance_score(query, h1)
+            score = math.log1p(impressions) * clicks_boost * ctr_boost * position_score * relevance
+        else:
+            # Standard mode: require DFS data and minimum volume
+            if not dfs:
+                continue
+            if volume < min_volume:
+                continue
 
-        # H1 relevance: rewards topical alignment with page content
-        relevance = _relevance_score(query, h1)
-
-        # Final score
-        score = (volume / difficulty) * math.log1p(impressions) * ctr_boost * position_score * relevance
+            position_score = 1 / (1 + max(0, position - 20) * 0.1)
+            ctr_boost      = 1 + ctr
+            relevance      = _relevance_score(query, h1)
+            score = (volume / difficulty) * math.log1p(impressions) * ctr_boost * position_score * relevance
 
         scored.append({
             "keyword":         row.get("query"),

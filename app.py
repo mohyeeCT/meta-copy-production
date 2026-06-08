@@ -105,6 +105,11 @@ with st.sidebar:
                                      help="2840 = US. See DataForSEO docs for other locations.")
     min_volume = st.number_input("Min Keyword Volume", value=10, step=10,
                                      help="Lower this for smaller sites. Set to 0 to disable volume filtering.")
+    restricted_industry = st.toggle(
+        "Restricted industry mode",
+        value=False,
+        help="Enable for industries where DataForSEO suppresses volume data (CBD, firearms, dispensaries, adult). Scores keywords on GSC engagement signals only, ignoring volume and difficulty."
+    )
 
 # ── Main: Sheet connection ────────────────────────────────────────────────────
 st.header("1. Connect to Google Sheet")
@@ -423,7 +428,8 @@ if "df" in st.session_state:
                         dfs_data=dfs_merged,
                         branded_terms=branded_terms,
                         min_volume=int(min_volume),
-                        h1=h1_value
+                        h1=h1_value,
+                        restricted_industry=restricted_industry,
                     )
 
                     if not result["fallback_triggered"]:
