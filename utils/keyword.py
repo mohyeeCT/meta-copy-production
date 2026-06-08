@@ -142,7 +142,7 @@ def select_keyword(
 
         impressions = row.get("impressions", 1)
         clicks      = row.get("clicks", 0)
-        ctr         = row.get("ctr", 0)
+        ctr         = min(row.get("ctr", 0), 0.15)  # cap CTR at 15% to prevent outlier domination
 
         # Position score: positions 1-20 are all valid targets (score 1.0)
         # Beyond 20, score drops to reflect weak relevance signal
