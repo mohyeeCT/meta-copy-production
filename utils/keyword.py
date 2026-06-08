@@ -116,7 +116,8 @@ def select_keyword(
         # Match to DFS data
         dfs        = dfs_data.get(query)
         volume     = dfs.get("volume", 0) if dfs else 0
-        difficulty = (dfs.get("difficulty", 50) if dfs else 50) or 50
+        kd = dfs.get("difficulty") if dfs else None
+        difficulty = max(kd if kd is not None else 50, 1)
 
         if restricted_industry:
             # Ignore volume/difficulty — score purely on GSC engagement signals
