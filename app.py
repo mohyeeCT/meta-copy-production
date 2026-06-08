@@ -486,6 +486,10 @@ if "df" in st.session_state:
                             selected_keyword = top_gsc["query"]
                             keyword_source = "gsc-only (low DFS volume)" if not dfs_errors else "gsc-only warning: " + " | ".join(dfs_errors)
                             runner_up_kw = non_branded[1]["query"] if len(non_branded) > 1 else None
+                            # Populate volume/difficulty from DFS data we already fetched
+                            _fb_dfs = dfs_merged.get(selected_keyword.lower(), {})
+                            kw_volume = _fb_dfs.get("volume")
+                            kw_difficulty = _fb_dfs.get("difficulty")
                         else:
                             keyword_source = f"fallback: no keyword passed scoring (GSC queries: {_gsc_debug})"
 
