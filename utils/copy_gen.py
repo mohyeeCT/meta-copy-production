@@ -7,8 +7,8 @@ def _sanitise(text: str, brand_name: str = "") -> str:
     if not text:
         return ""
     text = str(text)
-    text = text.replace("\u2014", ", ").replace("\u2013", " | ")
-    text = re.sub(r"\s*--\s*", ", ", text)
+    text = text.replace("\u2014", " ").replace("\u2013", " ")
+    text = re.sub(r"\s*--\s*", " ", text)
     text = text.strip().strip('"').strip("'").strip()
     if brand_name and brand_name.strip():
         text = re.sub(
