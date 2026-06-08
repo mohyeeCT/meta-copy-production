@@ -336,6 +336,7 @@ if "df" in st.session_state:
 
         results = []
         skipped = []
+        used_keywords: set = set()
 
         progress = st.progress(0, text="Starting...")
         total = len(df_work)
@@ -476,6 +477,11 @@ if "df" in st.session_state:
                 })
                 progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: skipped ({keyword_source})")
                 continue
+
+            # Duplicate keyword tracking
+            if selected_keyword.lower() in used_keywords:
+                keyword_source += " (duplicate — reused)"
+            used_keywords.add(selected_keyword.lower())
 
             # Generate copy
             progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: generating copy for '{selected_keyword}'...")
