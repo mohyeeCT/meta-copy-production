@@ -42,6 +42,41 @@ with st.sidebar:
         "Mistral (free tier)",
         "Groq (free tier)"
     ])
+    _provider_models = {
+        "Claude": [
+            ("Claude Sonnet 4.6 (default)", "claude-sonnet-4-6"),
+            ("Claude Sonnet 4.5", "claude-sonnet-4-5-20251001"),
+            ("Claude Haiku 4.5", "claude-haiku-4-5-20251001"),
+        ],
+        "OpenAI": [
+            ("GPT-5.5 (latest)", "gpt-5.5"),
+            ("GPT-5.4", "gpt-5.4"),
+            ("GPT-5.4 mini", "gpt-5.4-mini"),
+            ("GPT-5.4 nano", "gpt-5.4-nano"),
+        ],
+        "Gemini (free)": [
+            ("Gemini 2.0 Flash", "gemini-2.0-flash"),
+        ],
+        "Mistral (free tier)": [
+            ("Mistral Small (default)", "mistral-small-latest"),
+            ("Mistral Large", "mistral-large-latest"),
+        ],
+        "Groq (free tier)": [
+            ("Llama 3 70B (default)", "llama3-70b-8192"),
+            ("Llama 3.1 8B", "llama-3.1-8b-instant"),
+            ("Llama 3.3 70B", "llama-3.3-70b-versatile"),
+        ],
+    }
+    _model_options = _provider_models.get(ai_provider, [("Default", "")])
+    _model_labels = [label for label, _ in _model_options]
+    _model_values = [value for _, value in _model_options]
+    _model_idx = st.selectbox(
+        "Model",
+        range(len(_model_options)),
+        format_func=lambda i: _model_labels[i],
+        key="meta_model_select"
+    )
+    ai_model = _model_values[_model_idx]
     _key_labels = {
         "Claude": ("Claude API Key", "console.anthropic.com"),
         "OpenAI": ("OpenAI API Key", "platform.openai.com/api-keys"),
@@ -497,7 +532,8 @@ if "df" in st.session_state:
                     forbidden_phrases="\n".join([p.strip() for p in forbidden_phrases.strip().splitlines() if p.strip()]),
                     context=_niche_ctx,
                     business_type=business_type,
-                    h1=h1_value
+                    h1=h1_value,
+                    model=ai_model,
                 )
                 results.append({
                     "url": url,
