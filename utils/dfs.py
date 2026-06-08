@@ -42,7 +42,7 @@ def get_keyword_overview(dfs_login: str, dfs_password: str, keywords: list, loca
         return results
 
     except Exception as e:
-        return {"_error": str(e)}
+        raise RuntimeError(f"DataForSEO keyword volume failed: {e}") from e
 
 
 def get_keyword_difficulty(dfs_login: str, dfs_password: str, keywords: list, location_code: int = 2840, language_code: str = "en") -> dict:
@@ -76,4 +76,4 @@ def get_keyword_difficulty(dfs_login: str, dfs_password: str, keywords: list, lo
         return results
 
     except Exception as e:
-        return {"_error": str(e)}
+        raise RuntimeError(f"DataForSEO keyword difficulty failed: {e}") from e
