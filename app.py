@@ -125,6 +125,11 @@ with st.sidebar:
     selected_niche = _niche_keys[selected_niche_idx]
     st.session_state["meta_niche_idx"] = selected_niche_idx
 
+    brand_guidelines = st.text_area(
+        "Brand & Copy Guidelines (optional)",
+        placeholder="Paste brand voice, tone, target audience, USPs, key messages, words to avoid, competitor notes, or any copy guidelines here. The AI will apply this context to every URL generated in this run.",
+        height=160
+    )
     forbidden_phrases = st.text_area(
         "Forbidden Phrases (one per line)",
         placeholder="best in class\nworld-class\namazing",
@@ -536,6 +541,11 @@ if "df" in st.session_state:
             progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: generating copy for '{selected_keyword}'...")
             try:
                 _niche_ctx = get_niche_context(selected_niche)
+                _effective_context = (
+                    brand_guidelines + "\n\n" + _niche_ctx
+                    if brand_guidelines.strip() and _niche_ctx
+                    else _niche_ctx or brand_guidelines
+                )
                 copy = generate_copy(
                     provider=ai_provider,
                     api_key=ai_key,
@@ -544,7 +554,7 @@ if "df" in st.session_state:
                     page_type=page_type,
                     brand_name=brand_name if include_brand_in_copy else "",
                     forbidden_phrases="\n".join([p.strip() for p in forbidden_phrases.strip().splitlines() if p.strip()]),
-                    context=_niche_ctx,
+                    context=_effective_context,
                     business_type=business_type,
                     h1=h1_value,
                     model=ai_model,
