@@ -511,6 +511,12 @@ if "df" in st.session_state:
                 else:
                     keyword_source = "fallback: no GSC data"
 
+            # H1 fallback — fires when no keyword found through any path (no manual
+            # keyword, GSC disabled, GSC returned nothing, or all queries failed scoring)
+            if not selected_keyword and h1_value:
+                selected_keyword = h1_value
+                keyword_source = "h1-fallback"
+
             if not selected_keyword:
                 skipped.append({"row": i + 2, "reason": keyword_source})
                 results.append({
