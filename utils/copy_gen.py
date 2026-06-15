@@ -90,7 +90,7 @@ COPY_PROMPT = """You are a senior SEO copywriter with deep knowledge of how diff
 Write one title tag, one meta description, and one optimised H1 for the following page.
 
 Hard rules:
-- Title should aim for about 50 to 80 characters.
+- Title should aim for about 80 to 100 characters.
 - Meta description should aim for about 140 to 180 characters.
 - Prioritise strong, natural copy over mechanically forcing the old 60/155-character limits.
 - H1 has no hard character limit but should aim for under 70 characters.
@@ -135,7 +135,7 @@ TITLE_PROMPT = """You are a senior SEO copywriter with deep knowledge of how dif
 Write a title tag for the following page.
 
 Hard rules:
-- Aim for about 50 to 80 characters.
+- Aim for about 80 to 100 characters.
 - Prioritise a strong, natural title over mechanically forcing the old 60-character limit.
 - Include the target keyword naturally, ideally near the start
 - No all-caps, excessive punctuation, or clickbait
@@ -281,7 +281,7 @@ def _fit_to_limit(text: str, limit: int) -> str:
 
 def _normalise_copy_result(data: dict, brand_name: str = "") -> dict:
     return {
-        "title": _fit_to_limit(_sanitise(data.get("title", ""), brand_name), 80),
+        "title": _fit_to_limit(_sanitise(data.get("title", ""), brand_name), 120),
         "description": _fit_to_limit(_sanitise(data.get("description", ""), brand_name), 180),
         "h1_optimised": _sanitise(data.get("h1_optimised", ""), brand_name),
         "review_notes": _sanitise(data.get("review_notes", ""), brand_name),

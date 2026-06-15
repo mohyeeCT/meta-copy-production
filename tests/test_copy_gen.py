@@ -46,11 +46,11 @@ class MetaCopyGenTests(unittest.TestCase):
             h1="Commercial Roofing Services",
         )
 
-        self.assertIn("aim for about 50 to 80 characters", prompt)
+        self.assertIn("aim for about 80 to 100 characters", prompt)
         self.assertIn("aim for about 140 to 180 characters", prompt)
         self.assertNotIn("This is a strict limit", prompt)
 
-    def test_normalise_copy_result_preserves_longer_copy(self):
+    def test_normalise_copy_result_uses_relaxed_title_safety_cap(self):
         long_title = "This is a very long SEO title that should stay intact for review instead of being shortened automatically"
         long_description = " ".join(["description"] * 30)
         result = copy_gen._normalise_copy_result(
@@ -62,9 +62,21 @@ class MetaCopyGenTests(unittest.TestCase):
             brand_name="Acme",
         )
 
-        self.assertLessEqual(len(result["title"]), 80)
+        self.assertEqual(result["title"], long_title)
+        self.assertLessEqual(len(result["title"]), 120)
         self.assertLessEqual(len(result["description"]), 180)
         self.assertEqual(result["h1_optimised"], "Optimised H1")
+
+    def test_normalise_copy_result_caps_extreme_titles_at_120(self):
+        result = copy_gen._normalise_copy_result(
+            {
+                "title": " ".join(["descriptive"] * 30),
+                "description": "Description",
+                "h1_optimised": "Optimised H1",
+            }
+        )
+
+        self.assertLessEqual(len(result["title"]), 120)
 
 
 if __name__ == "__main__":

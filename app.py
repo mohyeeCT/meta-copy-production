@@ -640,7 +640,7 @@ if "results_df" in st.session_state:
         try:
             ti = results_df.columns.get_loc("title_length")
             di = results_df.columns.get_loc("description_length")
-            if row["title_length"] and int(row["title_length"]) > 60:
+            if row["title_length"] and int(row["title_length"]) > 100:
                 styles[ti] = "background-color: #fff3cd"
             if row["description_length"] and int(row["description_length"]) > 155:
                 styles[di] = "background-color: #fff3cd"

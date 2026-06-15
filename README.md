@@ -58,7 +58,7 @@ Rows where no keyword can be selected are flagged in the Skipped section and not
 | Runner Up Keyword | Second-best keyword candidate |
 | Generated Title | AI-generated title tag |
 | Generated Description | AI-generated meta description |
-| Title Length | Character count (flagged red if > 60) |
+| Title Length | Character count (flagged if > 100) |
 | Description Length | Character count (flagged red if > 155) |
 | Copy Status | ok / skipped / error |
 
