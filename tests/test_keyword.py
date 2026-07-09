@@ -70,6 +70,26 @@ class KeywordSelectionTests(unittest.TestCase):
                           "Standard mode must not select a keyword when DFS data is absent")
         self.assertTrue(result["fallback_triggered"])
 
+    def test_standard_zero_volume_scoring_uses_position_and_h1_relevance(self):
+        queries = [
+            {"query": "generic clearance sale", "impressions": 1000, "clicks": 10, "ctr": 0.01, "position": 50.0},
+            {"query": "red running shoes", "impressions": 100, "clicks": 8, "ctr": 0.08, "position": 6.0},
+        ]
+        dfs_data = {
+            "generic clearance sale": {"volume": 0, "difficulty": 20},
+            "red running shoes": {"volume": 0, "difficulty": 20},
+        }
+
+        result = select_keyword(
+            gsc_queries=queries,
+            dfs_data=dfs_data,
+            branded_terms=[],
+            min_volume=0,
+            h1="Red Running Shoes",
+        )
+
+        self.assertEqual(result["selected_keyword"], "red running shoes")
+
     def test_restricted_industry_ignores_min_volume_filter(self):
         """In restricted mode, keywords below min_volume must still compete."""
         queries = [

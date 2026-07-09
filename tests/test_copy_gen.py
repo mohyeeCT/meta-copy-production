@@ -4,6 +4,11 @@ from utils import copy_gen
 
 
 class MetaCopyGenTests(unittest.TestCase):
+    def test_provider_fallback_models_match_sidebar_defaults(self):
+        self.assertEqual(copy_gen.DEFAULT_MODELS["Claude"], "claude-sonnet-4-6")
+        self.assertEqual(copy_gen.DEFAULT_MODELS["OpenAI"], "gpt-5.5")
+        self.assertEqual(copy_gen.DEFAULT_MODELS["Groq (free tier)"], "llama3-70b-8192")
+
     def test_ecommerce_prompt_blocks_unsupported_claims(self):
         prompt = copy_gen._build_prompt(
             copy_gen.COPY_PROMPT,

@@ -137,7 +137,10 @@ def select_keyword(
             position_score = 1 / (1 + max(0, position - 20) * 0.1)
             ctr_boost      = 1 + ctr
             relevance      = _relevance_score(query, h1)
-            score = (volume / difficulty) * math.log1p(impressions) * ctr_boost * position_score * relevance
+            if volume <= 0:
+                score = math.log1p(impressions) * ctr_boost * position_score * relevance * 0.1
+            else:
+                score = (volume / difficulty) * math.log1p(impressions) * ctr_boost * position_score * relevance
 
         scored.append({
             "keyword":         row.get("query"),

@@ -8,8 +8,92 @@ from utils.sheets import get_gspread_client, load_sheet, write_results_to_sheet
 from utils.gsc import get_gsc_client, get_top_queries_for_url
 from utils.dfs import get_keyword_overview, get_keyword_difficulty
 from utils.keyword import select_keyword
-from utils.copy_gen import generate_copy
+from utils.copy_gen import generate_copy, DEFAULT_MODELS
 from utils.niches import get_niche_context, NICHES
+from utils.scraper import scrape_page_context
+
+
+RESULT_COL_MAP = {
+    "selected_keyword": "SEO Target Keyword",
+    "keyword_source": "Keyword Source",
+    "runner_up": "Runner Up Keyword",
+    "kw_volume": "Keyword Volume",
+    "kw_difficulty": "Keyword Difficulty",
+    "scrape_status": "Page Scrape Status",
+    "generated_title": "Generated Title",
+    "generated_description": "Generated Description",
+    "optimised_h1": "Optimised H1",
+    "title_length": "Title Length",
+    "description_length": "Description Length",
+    "h1_length": "H1 Length",
+    "review_flags": "Review Flags",
+    "review_notes": "Review Notes",
+    "provider": "Provider",
+    "model": "Model",
+    "generated_at": "Generated At",
+    "run_id": "Run ID",
+    "status": "Copy Status",
+}
+
+
+def _build_review_flags(
+    title: str = "",
+    description: str = "",
+    h1: str = "",
+    keyword: str = "",
+    brand_name: str = "",
+    forbidden_phrases: str = "",
+    review_notes: str = "",
+) -> str:
+    flags = []
+    title = title or ""
+    description = description or ""
+    h1 = h1 or ""
+    keyword = (keyword or "").strip().lower()
+    brand = (brand_name or "").strip().lower()
+    combined = " ".join([title, description, h1]).lower()
+
+    if not title.strip():
+        flags.append("missing title")
+    elif len(title) > 120:
+        flags.append("title exceeds safety cap")
+    elif len(title) > 100:
+        flags.append("title above guidance")
+    elif len(title) < 30:
+        flags.append("title may be too short")
+
+    if not description.strip():
+        flags.append("missing description")
+    elif len(description) > 180:
+        flags.append("description exceeds safety cap")
+    elif len(description) > 155:
+        flags.append("description above guidance")
+    elif len(description) < 90:
+        flags.append("description may be too short")
+
+    if keyword and keyword not in combined:
+        flags.append("keyword missing")
+
+    if brand and combined.count(brand) > 2:
+        flags.append("brand repeated")
+
+    for phrase in [p.strip().lower() for p in (forbidden_phrases or "").splitlines() if p.strip()]:
+        if phrase and phrase in combined:
+            flags.append(f"forbidden phrase: {phrase}")
+
+    if (review_notes or "").strip():
+        flags.append("review notes present")
+
+    return " | ".join(flags) if flags else "ok"
+
+
+def _normalise_page_type(page_type: str) -> str:
+    value = (page_type or "general").strip().lower().replace("_", " ")
+    if value in {"service lp", "service landing page", "service page"}:
+        return "service"
+    if value in {"landing page", "landing pages", "lp"}:
+        return "landing page"
+    return value or "general"
 
 # ── Page config ──────────────────────────────────────────────────────────────
 st.set_page_config(
@@ -43,25 +127,25 @@ with st.sidebar:
     ])
     _provider_models = {
         "Claude": [
-            ("Claude Sonnet 4.6 (default)", "claude-sonnet-4-6"),
+            ("Claude Sonnet 4.6 (default)", DEFAULT_MODELS["Claude"]),
             ("Claude Sonnet 4.5", "claude-sonnet-4-5-20251001"),
             ("Claude Haiku 4.5", "claude-haiku-4-5-20251001"),
         ],
         "OpenAI": [
-            ("GPT-5.5 (latest)", "gpt-5.5"),
+            ("GPT-5.5 (latest)", DEFAULT_MODELS["OpenAI"]),
             ("GPT-5.4", "gpt-5.4"),
             ("GPT-5.4 mini", "gpt-5.4-mini"),
             ("GPT-5.4 nano", "gpt-5.4-nano"),
         ],
         "Gemini (free)": [
-            ("Gemini 2.0 Flash", "gemini-2.0-flash"),
+            ("Gemini 2.0 Flash", DEFAULT_MODELS["Gemini (free)"]),
         ],
         "Mistral (free tier)": [
-            ("Mistral Small (default)", "mistral-small-latest"),
+            ("Mistral Small (default)", DEFAULT_MODELS["Mistral (free tier)"]),
             ("Mistral Large", "mistral-large-latest"),
         ],
         "Groq (free tier)": [
-            ("Llama 3 70B (default)", "llama3-70b-8192"),
+            ("Llama 3 70B (default)", DEFAULT_MODELS["Groq (free tier)"]),
             ("Llama 3.1 8B", "llama-3.1-8b-instant"),
             ("Llama 3.3 70B", "llama-3.3-70b-versatile"),
         ],
@@ -85,6 +169,19 @@ with st.sidebar:
     }
     _label, _hint = _key_labels[ai_provider]
     ai_key = st.text_input(_label, type="password", help=_hint)
+
+    st.divider()
+    st.subheader("Jina Reader")
+    jina_key = st.text_input(
+        "Jina API Key",
+        type="password",
+        help="Optional. Used to fetch cleaned page content and ground the metadata in the actual page."
+    )
+    enable_scraping = st.toggle(
+        "Enable page scraping",
+        value=True,
+        help="Adds a cleaned page-content excerpt to the AI prompt for each URL."
+    )
 
     st.divider()
     st.subheader("Copy Settings")
@@ -148,6 +245,11 @@ with st.sidebar:
         "Restricted industry mode",
         value=False,
         help="Enable for industries where DataForSEO suppresses volume data (CBD, firearms, dispensaries, adult). Scores keywords on GSC engagement signals only, ignoring volume and difficulty."
+    )
+    auto_write_rows = st.toggle(
+        "Auto-write completed rows to Google Sheet",
+        value=False,
+        help="Writes completed rows back to the connected sheet during the run. Useful for long batches."
     )
 
 # ── Main: Sheet connection ────────────────────────────────────────────────────
@@ -349,6 +451,19 @@ if "df" in st.session_state:
     if not ready:
         st.warning("Complete credentials and settings before running.")
 
+    _preview_rows = len(st.session_state.get("df", []))
+    _preview_ai_calls = _preview_rows
+    _preview_gsc_calls = _preview_rows if use_gsc else 0
+    _preview_dfs_calls = _preview_rows * 2
+    _preview_scrape_calls = _preview_rows if enable_scraping else 0
+    with st.expander("Run summary / cost preview", expanded=False):
+        st.write(f"Rows queued: {_preview_rows}")
+        st.write(f"Expected AI calls: {_preview_ai_calls}")
+        st.write(f"Expected GSC URL calls: {_preview_gsc_calls}")
+        st.write(f"Expected DataForSEO calls: up to {_preview_dfs_calls}")
+        st.write(f"Expected Jina page scrape calls: {_preview_scrape_calls}")
+        st.caption("Counts are estimates based on current settings; skipped rows or cached provider behavior can reduce actual calls.")
+
     run_btn = st.button("Generate Copy", type="primary", disabled=not ready)
 
     if run_btn:
@@ -376,9 +491,31 @@ if "df" in st.session_state:
         results = []
         skipped = []
         used_keywords: set = set()
+        run_id = time.strftime("%Y%m%d-%H%M%S")
 
         progress = st.progress(0, text="Starting...")
+        partial_results_placeholder = st.empty()
+        st.session_state["partial_results"] = []
         total = len(df_work)
+
+        def _refresh_partial_results(message: str):
+            st.session_state["partial_results"] = results
+            if results:
+                partial_results_placeholder.caption(message)
+                partial_results_placeholder.dataframe(
+                    pd.DataFrame(results),
+                    use_container_width=True,
+                    height=300,
+                )
+
+        def _auto_write_completed_results():
+            if not auto_write_rows or not results:
+                return
+            ws = st.session_state["ws"]
+            try:
+                write_results_to_sheet(ws, pd.DataFrame(results), RESULT_COL_MAP)
+            except Exception as e:
+                st.warning(f"Auto-write failed: {e}")
 
         for i, row in df_work.iterrows():
             url = str(row.get(url_col, "")).strip()
@@ -389,21 +526,31 @@ if "df" in st.session_state:
                     "selected_keyword": None,
                     "keyword_source": None,
                     "runner_up": None,
+                    "kw_volume": None,
+                    "kw_difficulty": None,
+                    "scrape_status": "skipped",
+                    "page_context_preview": "",
                     "generated_title": None,
                     "generated_description": None,
                     "title_length": None,
                     "description_length": None,
                     "optimised_h1": None,
                     "h1_length": None,
+                    "review_flags": "invalid URL",
                     "review_notes": None,
+                    "provider": ai_provider,
+                    "model": ai_model,
+                    "generated_at": "",
+                    "run_id": run_id,
                     "status": "skipped: invalid URL"
                 })
                 progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: skipped")
+                _refresh_partial_results(f"Processed {len(results)}/{total} rows")
+                _auto_write_completed_results()
                 continue
 
             page_type = str(row.get(page_type_col, "general")).strip() if page_type_col != "(none)" else "general"
-            if not page_type:
-                page_type = "general"
+            page_type = _normalise_page_type(page_type)
 
             # H1: manual entry only
             h1_value = ""
@@ -526,16 +673,25 @@ if "df" in st.session_state:
                     "runner_up": runner_up_kw,
                     "kw_volume": kw_volume,
                     "kw_difficulty": kw_difficulty,
+                    "scrape_status": "skipped",
+                    "page_context_preview": "",
                     "generated_title": None,
                     "generated_description": None,
                     "title_length": None,
                     "description_length": None,
                     "optimised_h1": None,
                     "h1_length": None,
+                    "review_flags": f"skipped: {keyword_source}",
                     "review_notes": None,
+                    "provider": ai_provider,
+                    "model": ai_model,
+                    "generated_at": "",
+                    "run_id": run_id,
                     "status": f"skipped: {keyword_source}"
                 })
                 progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: skipped ({keyword_source})")
+                _refresh_partial_results(f"Processed {len(results)}/{total} rows")
+                _auto_write_completed_results()
                 continue
 
             # Duplicate keyword tracking
@@ -543,14 +699,32 @@ if "df" in st.session_state:
                 keyword_source += " (duplicate — reused)"
             used_keywords.add(selected_keyword.lower())
 
+            scrape_status = "disabled"
+            page_context = ""
+            if enable_scraping:
+                progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: scraping page content...")
+                scrape_result = scrape_page_context(jina_key, url, max_chars=5000)
+                if scrape_result.get("success"):
+                    page_context = scrape_result.get("content", "")
+                    scrape_status = f"ok ({len(page_context)} chars)"
+                else:
+                    scrape_status = f"failed: {scrape_result.get('error', 'unknown error')[:80]}"
+                    st.warning(f"Page scrape failed for row {i+1}: {scrape_result.get('error', 'unknown error')}")
+
             # Generate copy
             progress.progress((i + 1) / total, text=f"Row {i+1}/{total}: generating copy for '{selected_keyword}'...")
             try:
                 _niche_ctx = get_niche_context(selected_niche)
-                _effective_context = (
-                    brand_guidelines + "\n\n" + _niche_ctx
-                    if brand_guidelines.strip() and _niche_ctx
-                    else _niche_ctx or brand_guidelines
+                _context_parts = []
+                if brand_guidelines.strip():
+                    _context_parts.append("BRAND & COPY GUIDELINES:\n" + brand_guidelines.strip())
+                if _niche_ctx:
+                    _context_parts.append(_niche_ctx)
+                if page_context:
+                    _context_parts.append("PAGE CONTENT EXCERPT:\n---\n" + page_context + "\n---")
+                _effective_context = "\n\n".join(_context_parts)
+                _forbidden_phrases = "\n".join(
+                    [p.strip() for p in forbidden_phrases.strip().splitlines() if p.strip()]
                 )
                 copy = generate_copy(
                     provider=ai_provider,
@@ -559,11 +733,20 @@ if "df" in st.session_state:
                     keyword=selected_keyword,
                     page_type=page_type,
                     brand_name=brand_name if include_brand_in_copy else "",
-                    forbidden_phrases="\n".join([p.strip() for p in forbidden_phrases.strip().splitlines() if p.strip()]),
+                    forbidden_phrases=_forbidden_phrases,
                     context=_effective_context,
                     business_type=business_type,
                     h1=h1_value,
                     model=ai_model,
+                )
+                review_flags = _build_review_flags(
+                    title=copy["title"],
+                    description=copy["description"],
+                    h1=copy.get("h1_optimised", ""),
+                    keyword=selected_keyword,
+                    brand_name=brand_name if include_brand_in_copy else "",
+                    forbidden_phrases=_forbidden_phrases,
+                    review_notes=copy.get("review_notes", ""),
                 )
                 results.append({
                     "url": url,
@@ -574,13 +757,20 @@ if "df" in st.session_state:
                     "kw_difficulty": kw_difficulty,
                     "keyword_source": keyword_source,
                     "runner_up": runner_up_kw,
+                    "scrape_status": scrape_status,
+                    "page_context_preview": page_context[:1000],
                     "generated_title": copy["title"],
                     "generated_description": copy["description"],
                     "optimised_h1": copy.get("h1_optimised", ""),
                     "title_length": len(copy["title"]),
                     "description_length": len(copy["description"]),
                     "h1_length": len(copy.get("h1_optimised", "")),
+                    "review_flags": review_flags,
                     "review_notes": copy.get("review_notes", ""),
+                    "provider": ai_provider,
+                    "model": ai_model,
+                    "generated_at": time.strftime("%Y-%m-%d %H:%M:%S"),
+                    "run_id": run_id,
                     "status": "ok"
                 })
             except Exception as e:
@@ -591,16 +781,26 @@ if "df" in st.session_state:
                     "runner_up": runner_up_kw,
                     "kw_volume": kw_volume,
                     "kw_difficulty": kw_difficulty,
+                    "scrape_status": scrape_status,
+                    "page_context_preview": page_context[:1000],
                     "generated_title": None,
                     "generated_description": None,
                     "title_length": None,
                     "description_length": None,
                     "optimised_h1": None,
                     "h1_length": None,
+                    "review_flags": f"generation error: {str(e)[:80]}",
                     "review_notes": None,
+                    "provider": ai_provider,
+                    "model": ai_model,
+                    "generated_at": "",
+                    "run_id": run_id,
                     "status": f"error: {str(e)}"
                 })
                 skipped.append({"row": i + 2, "reason": str(e)})
+
+            _refresh_partial_results(f"Processed {len(results)}/{total} rows")
+            _auto_write_completed_results()
 
             # Rate limiting: Gemini free tier = 15 RPM (2 calls per URL = ~4s needed)
             _rate_delays = {
@@ -680,24 +880,9 @@ if "results_df" in st.session_state:
     with ec2:
         if st.button("Write Back to Google Sheet"):
             ws  = st.session_state["ws"]
-            col_map = {
-                "selected_keyword":      "SEO Target Keyword",
-                "keyword_source":        "Keyword Source",
-                "runner_up":             "Runner Up Keyword",
-                "kw_volume":             "Keyword Volume",
-                "kw_difficulty":         "Keyword Difficulty",
-                "generated_title":       "Generated Title",
-                "generated_description": "Generated Description",
-                "optimised_h1":          "Optimised H1",
-                "title_length":          "Title Length",
-                "description_length":    "Description Length",
-                "h1_length":             "H1 Length",
-                "review_notes":          "Review Notes",
-                "status":                "Copy Status"
-            }
             with st.spinner("Writing to sheet..."):
                 try:
-                    write_results_to_sheet(ws, results_df, col_map)
+                    write_results_to_sheet(ws, results_df, RESULT_COL_MAP)
                     st.success(f"Done. {len(results_df)} rows written to Google Sheet.")
                 except Exception as e:
                     st.error(f"Write failed: {e}")

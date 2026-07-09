@@ -78,6 +78,15 @@ BUSINESS_TYPE_CONTEXT = {
 }
 
 
+DEFAULT_MODELS = {
+    "Claude": "claude-sonnet-4-6",
+    "OpenAI": "gpt-5.5",
+    "Gemini (free)": "gemini-2.0-flash",
+    "Mistral (free tier)": "mistral-small-latest",
+    "Groq (free tier)": "llama3-70b-8192",
+}
+
+
 UNSUPPORTED_CLAIM_GUARDRAIL = """UNSUPPORTED CLAIM RULES:
 - Do not state return, shipping, delivery, warranty, guarantee, refund, exchange, eligibility, availability, stock, pricing, discount, certification, compliance, safety, legal, medical, or performance claims unless explicitly present in supplied context, page details, or brand guidelines.
 - Treat business type, niche, keyword, H1, and CTA examples as strategy signals, not proof of this business's actual policies, inventory, prices, warranties, guarantees, or shipping terms.
@@ -310,7 +319,7 @@ def generate_copy_claude(api_key: str, url: str, keyword: str, page_type: str = 
                          business_type: str = "general", h1: str = "", model: str = "") -> dict:
     import anthropic
     client = anthropic.Anthropic(api_key=api_key)
-    _model = model or "claude-sonnet-4-20250514"
+    _model = model or DEFAULT_MODELS["Claude"]
 
     def call(prompt):
         msg = client.messages.create(
@@ -328,7 +337,7 @@ def generate_copy_openai(api_key: str, url: str, keyword: str, page_type: str = 
                          business_type: str = "general", h1: str = "", model: str = "") -> dict:
     import openai
     client = openai.OpenAI(api_key=api_key)
-    _model = model or "gpt-4o-mini"
+    _model = model or DEFAULT_MODELS["OpenAI"]
 
     def call(prompt):
         resp = client.chat.completions.create(
@@ -346,7 +355,7 @@ def generate_copy_gemini(api_key: str, url: str, keyword: str, page_type: str = 
                          business_type: str = "general", h1: str = "", model: str = "") -> dict:
     from google import genai as google_genai
     client = google_genai.Client(api_key=api_key)
-    _model = model or "gemini-2.0-flash"
+    _model = model or DEFAULT_MODELS["Gemini (free)"]
 
     def call(prompt):
         resp = client.models.generate_content(model=_model, contents=prompt)
@@ -360,7 +369,7 @@ def generate_copy_mistral(api_key: str, url: str, keyword: str, page_type: str =
                           business_type: str = "general", h1: str = "", model: str = "") -> dict:
     from mistralai.client import Mistral
     client = Mistral(api_key=api_key)
-    _model = model or "mistral-small-latest"
+    _model = model or DEFAULT_MODELS["Mistral (free tier)"]
 
     def call(prompt):
         resp = client.chat.complete(
@@ -378,7 +387,7 @@ def generate_copy_groq(api_key: str, url: str, keyword: str, page_type: str = "g
                        business_type: str = "general", h1: str = "", model: str = "") -> dict:
     from groq import Groq
     client = Groq(api_key=api_key)
-    _model = model or "llama-3.1-8b-instant"
+    _model = model or DEFAULT_MODELS["Groq (free tier)"]
 
     def call(prompt):
         resp = client.chat.completions.create(
