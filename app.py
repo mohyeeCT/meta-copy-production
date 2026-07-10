@@ -122,32 +122,19 @@ with st.sidebar:
         "Claude",
         "OpenAI",
         "Gemini (free)",
-        "Mistral (free tier)",
-        "Groq (free tier)"
     ])
     _provider_models = {
         "Claude": [
-            ("Claude Sonnet 4.6 (default)", DEFAULT_MODELS["Claude"]),
-            ("Claude Sonnet 4.5", "claude-sonnet-4-5-20251001"),
+            ("Claude Sonnet 5 (default)", DEFAULT_MODELS["Claude"]),
+            ("Claude Sonnet 4.6", "claude-sonnet-4-6"),
             ("Claude Haiku 4.5", "claude-haiku-4-5-20251001"),
         ],
         "OpenAI": [
             ("GPT-5.5 (latest)", DEFAULT_MODELS["OpenAI"]),
             ("GPT-5.4", "gpt-5.4"),
-            ("GPT-5.4 mini", "gpt-5.4-mini"),
-            ("GPT-5.4 nano", "gpt-5.4-nano"),
         ],
         "Gemini (free)": [
-            ("Gemini 2.0 Flash", DEFAULT_MODELS["Gemini (free)"]),
-        ],
-        "Mistral (free tier)": [
-            ("Mistral Small (default)", DEFAULT_MODELS["Mistral (free tier)"]),
-            ("Mistral Large", "mistral-large-latest"),
-        ],
-        "Groq (free tier)": [
-            ("Llama 3 70B (default)", DEFAULT_MODELS["Groq (free tier)"]),
-            ("Llama 3.1 8B", "llama-3.1-8b-instant"),
-            ("Llama 3.3 70B", "llama-3.3-70b-versatile"),
+            ("Gemini 3.5 Flash", DEFAULT_MODELS["Gemini (free)"]),
         ],
     }
     _model_options = _provider_models.get(ai_provider, [("Default", "")])
@@ -157,15 +144,17 @@ with st.sidebar:
         "Model",
         range(len(_model_options)),
         format_func=lambda i: _model_labels[i],
-        key="meta_model_select"
+        key="meta_model_select",
+        help=(
+            "Approved IDs: claude-sonnet-5, claude-sonnet-4-6, "
+            "claude-haiku-4-5-20251001, gpt-5.5, gpt-5.4, gemini-3.5-flash."
+        )
     )
     ai_model = _model_values[_model_idx]
     _key_labels = {
         "Claude": ("Claude API Key", "console.anthropic.com"),
         "OpenAI": ("OpenAI API Key", "platform.openai.com/api-keys"),
         "Gemini (free)": ("Google AI Studio API Key", "aistudio.google.com/app/apikey - free, no card needed"),
-        "Mistral (free tier)": ("Mistral API Key", "console.mistral.ai - free tier available"),
-        "Groq (free tier)": ("Groq API Key", "console.groq.com - free tier available"),
     }
     _label, _hint = _key_labels[ai_provider]
     ai_key = st.text_input(_label, type="password", help=_hint)
@@ -805,8 +794,6 @@ if "df" in st.session_state:
             # Rate limiting: Gemini free tier = 15 RPM (2 calls per URL = ~4s needed)
             _rate_delays = {
                 "Gemini (free)": 5.0,
-                "Mistral (free tier)": 2.0,
-                "Groq (free tier)": 2.0,
                 "Claude": 0.5,
                 "OpenAI": 0.5,
             }
