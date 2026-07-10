@@ -79,11 +79,9 @@ BUSINESS_TYPE_CONTEXT = {
 
 
 DEFAULT_MODELS = {
-    "Claude": "claude-sonnet-4-6",
+    "Claude": "claude-sonnet-5",
     "OpenAI": "gpt-5.5",
-    "Gemini (free)": "gemini-2.0-flash",
-    "Mistral (free tier)": "mistral-small-latest",
-    "Groq (free tier)": "llama3-70b-8192",
+    "Gemini (free)": "gemini-3.5-flash",
 }
 
 
@@ -314,6 +312,27 @@ def _call_and_normalise(call_fn, url: str, keyword: str, page_type: str,
     return _normalise_copy_result(_parse_copy_json(call_fn(prompt)), brand_name)
 
 
+def _extract_anthropic_text(content) -> str:
+    text = "\n".join(
+        str(block.text)
+        for block in (content or [])
+        if getattr(block, "type", "text") == "text" and getattr(block, "text", None)
+    ).strip()
+    if not text:
+        raise RuntimeError("AI provider returned an empty text response")
+    return text
+
+
+def _anthropic_request_options(model: str, max_tokens: int) -> dict:
+    return {"model": model, "max_tokens": max_tokens}
+
+
+def _openai_token_limit(model: str, max_tokens: int) -> dict:
+    if (model or "").startswith("gpt-5"):
+        return {"max_completion_tokens": max_tokens}
+    return {"max_tokens": max_tokens}
+
+
 def generate_copy_claude(api_key: str, url: str, keyword: str, page_type: str = "general",
                          brand_name: str = "", forbidden_phrases: str = "", context: str = "",
                          business_type: str = "general", h1: str = "", model: str = "") -> dict:
@@ -323,11 +342,10 @@ def generate_copy_claude(api_key: str, url: str, keyword: str, page_type: str = 
 
     def call(prompt):
         msg = client.messages.create(
-            model=_model,
-            max_tokens=512,
+            **_anthropic_request_options(_model, 512),
             messages=[{"role": "user", "content": prompt}],
         )
-        return msg.content[0].text.strip()
+        return _extract_anthropic_text(msg.content)
 
     return _call_and_normalise(call, url, keyword, page_type, brand_name, forbidden_phrases, context, business_type, h1)
 
@@ -342,7 +360,7 @@ def generate_copy_openai(api_key: str, url: str, keyword: str, page_type: str = 
     def call(prompt):
         resp = client.chat.completions.create(
             model=_model,
-            max_tokens=512,
+            **_openai_token_limit(_model, 512),
             messages=[{"role": "user", "content": prompt}],
         )
         return resp.choices[0].message.content.strip()
@@ -364,48 +382,10 @@ def generate_copy_gemini(api_key: str, url: str, keyword: str, page_type: str = 
     return _call_and_normalise(call, url, keyword, page_type, brand_name, forbidden_phrases, context, business_type, h1)
 
 
-def generate_copy_mistral(api_key: str, url: str, keyword: str, page_type: str = "general",
-                          brand_name: str = "", forbidden_phrases: str = "", context: str = "",
-                          business_type: str = "general", h1: str = "", model: str = "") -> dict:
-    from mistralai.client import Mistral
-    client = Mistral(api_key=api_key)
-    _model = model or DEFAULT_MODELS["Mistral (free tier)"]
-
-    def call(prompt):
-        resp = client.chat.complete(
-            model=_model,
-            max_tokens=512,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return resp.choices[0].message.content.strip()
-
-    return _call_and_normalise(call, url, keyword, page_type, brand_name, forbidden_phrases, context, business_type, h1)
-
-
-def generate_copy_groq(api_key: str, url: str, keyword: str, page_type: str = "general",
-                       brand_name: str = "", forbidden_phrases: str = "", context: str = "",
-                       business_type: str = "general", h1: str = "", model: str = "") -> dict:
-    from groq import Groq
-    client = Groq(api_key=api_key)
-    _model = model or DEFAULT_MODELS["Groq (free tier)"]
-
-    def call(prompt):
-        resp = client.chat.completions.create(
-            model=_model,
-            max_tokens=512,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        return resp.choices[0].message.content.strip()
-
-    return _call_and_normalise(call, url, keyword, page_type, brand_name, forbidden_phrases, context, business_type, h1)
-
-
 PROVIDERS = {
     "Claude": generate_copy_claude,
     "OpenAI": generate_copy_openai,
     "Gemini (free)": generate_copy_gemini,
-    "Mistral (free tier)": generate_copy_mistral,
-    "Groq (free tier)": generate_copy_groq,
 }
 
 

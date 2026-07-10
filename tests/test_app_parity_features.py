@@ -31,6 +31,24 @@ class AppParityFeatureTests(unittest.TestCase):
         self.assertIn('"Review Flags"', self.source)
         self.assertIn('"Page Scrape Status"', self.source)
 
+    def test_app_exposes_only_approved_provider_model_set(self):
+        self.assertIn('"Claude"', self.source)
+        self.assertIn('"OpenAI"', self.source)
+        self.assertIn('"Gemini (free)"', self.source)
+        self.assertIn("Claude Sonnet 5", self.source)
+        self.assertIn("claude-sonnet-5", self.source)
+        self.assertIn("claude-sonnet-4-6", self.source)
+        self.assertIn("claude-haiku-4-5-20251001", self.source)
+        self.assertIn("gpt-5.5", self.source)
+        self.assertIn("gpt-5.4", self.source)
+        self.assertIn("gemini-3.5-flash", self.source)
+        self.assertNotIn("Mistral", self.source)
+        self.assertNotIn("Groq", self.source)
+        self.assertNotIn("gemini-2.0-flash", self.source)
+        self.assertNotIn("gpt-5.4-mini", self.source)
+        self.assertNotIn("gpt-5.4-nano", self.source)
+        self.assertNotIn("gpt-4o", self.source)
+
 
 if __name__ == "__main__":
     unittest.main()
