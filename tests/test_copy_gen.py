@@ -4,6 +4,34 @@ from utils import copy_gen
 
 
 class MetaCopyGenTests(unittest.TestCase):
+    def test_all_metadata_prompts_block_internal_source_language(self):
+        for template in (
+            copy_gen.TITLE_PROMPT,
+            copy_gen.DESCRIPTION_PROMPT,
+            copy_gen.H1_PROMPT,
+            copy_gen.COPY_PROMPT,
+        ):
+            prompt = copy_gen._build_prompt(
+                template,
+                url="https://example.com/products/widgets",
+                keyword="widgets",
+                page_type="category",
+                brand_name="Example",
+                forbidden_phrases="",
+                context="The live product page specifically positions the range for teams.",
+                business_type="ecommerce",
+                h1="Widgets",
+            )
+
+            self.assertIn("CUSTOMER-FACING SOURCE LANGUAGE RULE", prompt)
+            self.assertIn("Use page content, search results, keywords, and brand guidance silently", prompt)
+            self.assertIn("the live product page states", prompt)
+            self.assertIn("State supported details directly and naturally", prompt)
+            self.assertIn(
+                "Internal-source terms are allowed when they are genuinely part of the topic",
+                prompt,
+            )
+
     def test_all_metadata_prompts_require_us_english(self):
         for template in (
             copy_gen.TITLE_PROMPT,

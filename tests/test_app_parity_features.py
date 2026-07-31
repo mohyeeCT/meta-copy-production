@@ -35,7 +35,18 @@ class AppParityFeatureTests(unittest.TestCase):
         self.assertIn("find_non_us_english_spellings", self.source)
         self.assertIn("protected_phrases", self.source)
         self.assertIn("Non-U.S. English spelling detected", self.source)
-        self.assertIn("protected_phrases=[brand_name, h1_value]", self.source)
+        self.assertIn(
+            "protected_phrases=[brand_name, h1_value, selected_keyword]",
+            self.source,
+        )
+
+    def test_review_flags_detect_internal_source_language(self):
+        self.assertIn("find_internal_source_language", self.source)
+        self.assertIn("Internal source language detected", self.source)
+        self.assertIn(
+            "protected_phrases=[brand_name, h1_value, selected_keyword]",
+            self.source,
+        )
 
     def test_app_exposes_only_approved_provider_model_set(self):
         self.assertIn('"Claude"', self.source)

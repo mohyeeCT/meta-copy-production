@@ -9,7 +9,10 @@ from utils.gsc import get_gsc_client, get_top_queries_for_url
 from utils.dfs import get_keyword_overview, get_keyword_difficulty
 from utils.keyword import select_keyword
 from utils.copy_gen import generate_copy, DEFAULT_MODELS
-from utils.language import find_non_us_english_spellings
+from utils.language import (
+    find_internal_source_language,
+    find_non_us_english_spellings,
+)
 from utils.niches import get_niche_context, NICHES
 from utils.scraper import scrape_page_context
 
@@ -92,6 +95,17 @@ def _build_review_flags(
             "Non-U.S. English spelling detected: "
             + ", ".join(non_us_spellings[:5])
             + ". Use U.S. English."
+        )
+
+    internal_source_language = find_internal_source_language(
+        " ".join([title, description, h1]),
+        protected_phrases or [],
+    )
+    if internal_source_language:
+        flags.append(
+            "Internal source language detected: "
+            + ", ".join(internal_source_language[:5])
+            + ". Rewrite as customer-facing copy."
         )
 
     if (review_notes or "").strip():
@@ -749,7 +763,7 @@ if "df" in st.session_state:
                     brand_name=brand_name if include_brand_in_copy else "",
                     forbidden_phrases=_forbidden_phrases,
                     review_notes=copy.get("review_notes", ""),
-                    protected_phrases=[brand_name, h1_value],
+                    protected_phrases=[brand_name, h1_value, selected_keyword],
                 )
                 results.append({
                     "url": url,

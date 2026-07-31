@@ -1,7 +1,7 @@
 import json
 import re
 
-from utils.language import US_ENGLISH_OUTPUT_RULE
+from utils.language import CUSTOMER_FACING_OUTPUT_RULE, US_ENGLISH_OUTPUT_RULE
 
 
 def _sanitise(text: str, brand_name: str = "") -> str:
@@ -100,6 +100,7 @@ Write one title tag, one meta description, and one optimized H1 for the followin
 
 Hard rules:
 {us_english_output_rule}
+{customer_facing_output_rule}
 - Title should aim for about 80 to 100 characters.
 - Meta description should aim for about 140 to 180 characters.
 - Prioritize strong, natural copy over mechanically forcing the old 60/155-character limits.
@@ -146,6 +147,7 @@ Write a title tag for the following page.
 
 Hard rules:
 {us_english_output_rule}
+{customer_facing_output_rule}
 - Aim for about 80 to 100 characters.
 - Prioritize a strong, natural title over mechanically forcing the old 60-character limit.
 - Include the target keyword naturally, ideally near the start
@@ -183,6 +185,7 @@ Write a meta description for the following page.
 
 Hard rules:
 {us_english_output_rule}
+{customer_facing_output_rule}
 - Aim for about 140 to 180 characters.
 - Prioritize a clear, persuasive description over mechanically forcing the old 155-character limit.
 - Include the target keyword naturally
@@ -219,6 +222,7 @@ H1_PROMPT = """You are a senior SEO copywriter. Write an optimized H1 tag for th
 
 Hard rules:
 {us_english_output_rule}
+{customer_facing_output_rule}
 - No hard character limit but aim for under 70 characters
 - Include the target keyword naturally, ideally near the start
 - Do NOT include the brand name (H1 is on-page copy, brand is not needed)
@@ -270,6 +274,7 @@ def _build_prompt(template: str, url: str, keyword: str, page_type: str,
         desc_pattern=bcontext["desc_pattern"],
         unsupported_claim_guardrail=UNSUPPORTED_CLAIM_GUARDRAIL,
         us_english_output_rule=US_ENGLISH_OUTPUT_RULE,
+        customer_facing_output_rule=CUSTOMER_FACING_OUTPUT_RULE,
     )
 
 
