@@ -9,6 +9,7 @@ from utils.gsc import get_gsc_client, get_top_queries_for_url
 from utils.dfs import get_keyword_overview, get_keyword_difficulty
 from utils.keyword import select_keyword
 from utils.copy_gen import generate_copy, DEFAULT_MODELS
+from utils.language import find_non_us_english_spellings
 from utils.niches import get_niche_context, NICHES
 from utils.scraper import scrape_page_context
 
@@ -44,6 +45,7 @@ def _build_review_flags(
     brand_name: str = "",
     forbidden_phrases: str = "",
     review_notes: str = "",
+    protected_phrases: list[str] | None = None,
 ) -> str:
     flags = []
     title = title or ""
@@ -80,6 +82,17 @@ def _build_review_flags(
     for phrase in [p.strip().lower() for p in (forbidden_phrases or "").splitlines() if p.strip()]:
         if phrase and phrase in combined:
             flags.append(f"forbidden phrase: {phrase}")
+
+    non_us_spellings = find_non_us_english_spellings(
+        " ".join([title, description, h1]),
+        protected_phrases or [],
+    )
+    if non_us_spellings:
+        flags.append(
+            "Non-U.S. English spelling detected: "
+            + ", ".join(non_us_spellings[:5])
+            + ". Use U.S. English."
+        )
 
     if (review_notes or "").strip():
         flags.append("review notes present")
@@ -736,6 +749,7 @@ if "df" in st.session_state:
                     brand_name=brand_name if include_brand_in_copy else "",
                     forbidden_phrases=_forbidden_phrases,
                     review_notes=copy.get("review_notes", ""),
+                    protected_phrases=[brand_name, h1_value],
                 )
                 results.append({
                     "url": url,
