@@ -31,6 +31,12 @@ class AppParityFeatureTests(unittest.TestCase):
         self.assertIn('"Review Flags"', self.source)
         self.assertIn('"Page Scrape Status"', self.source)
 
+    def test_review_flags_check_us_english_and_protect_source_names(self):
+        self.assertIn("find_non_us_english_spellings", self.source)
+        self.assertIn("protected_phrases", self.source)
+        self.assertIn("Non-U.S. English spelling detected", self.source)
+        self.assertIn("protected_phrases=[brand_name, h1_value]", self.source)
+
     def test_app_exposes_only_approved_provider_model_set(self):
         self.assertIn('"Claude"', self.source)
         self.assertIn('"OpenAI"', self.source)
