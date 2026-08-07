@@ -60,7 +60,7 @@ def _clean_reader_text(text: str, max_chars: int = 5000) -> tuple:
     lines = []
     for raw in text.splitlines():
         line = raw.strip()
-        if not line or _NOISE_LINE_PATTERNS.match(line):
+        if line and _NOISE_LINE_PATTERNS.match(line):
             continue
         if line.startswith("Title:"):
             continue
@@ -111,6 +111,15 @@ def scrape_page_context(api_key: str, url: str, max_chars: int = 5000) -> dict:
         resp.raise_for_status()
 
         content, title = _clean_reader_text(resp.text.strip(), max_chars=max_chars)
+        if not content and "X-Remove-Selector" in headers:
+            headers.pop("X-Remove-Selector", None)
+            resp = requests.get(f"{JINA_BASE}/{url}", headers=headers, timeout=35)
+            resp.raise_for_status()
+            content, fallback_title = _clean_reader_text(
+                resp.text.strip(),
+                max_chars=max_chars,
+            )
+            title = fallback_title or title
         if not content:
             return {"content": "", "title": title, "success": False, "error": "No substantive content found"}
         return {"content": content, "title": title, "success": True, "error": ""}
