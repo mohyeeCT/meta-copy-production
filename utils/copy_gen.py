@@ -331,7 +331,10 @@ def _extract_anthropic_text(content) -> str:
 
 
 def _anthropic_request_options(model: str, max_tokens: int) -> dict:
-    return {"model": model, "max_tokens": max_tokens}
+    options = {"model": model, "max_tokens": max_tokens}
+    if (model or "").startswith("claude-sonnet-5"):
+        options["extra_body"] = {"thinking": {"type": "disabled"}}
+    return options
 
 
 def _openai_token_limit(model: str, max_tokens: int) -> dict:

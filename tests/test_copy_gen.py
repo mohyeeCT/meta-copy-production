@@ -37,12 +37,20 @@ class MetaCopyGenTests(unittest.TestCase):
             },
         )
 
-    def test_sonnet_5_request_leaves_thinking_unset(self):
+    def test_sonnet_5_request_disables_thinking_for_short_json_generation(self):
         options = copy_gen._anthropic_request_options("claude-sonnet-5", 512)
 
-        self.assertEqual(options, {"model": "claude-sonnet-5", "max_tokens": 512})
+        self.assertEqual(options["model"], "claude-sonnet-5")
+        self.assertEqual(options["max_tokens"], 512)
+        self.assertEqual(
+            options["extra_body"],
+            {"thinking": {"type": "disabled"}},
+        )
         self.assertNotIn("thinking", options)
-        self.assertNotIn("extra_body", options)
+        self.assertEqual(
+            copy_gen._anthropic_request_options("claude-sonnet-4-6", 512),
+            {"model": "claude-sonnet-4-6", "max_tokens": 512},
+        )
 
     def test_anthropic_text_extractor_skips_non_text_blocks(self):
         class Block:
